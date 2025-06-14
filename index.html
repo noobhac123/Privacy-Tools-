@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Device Monitoring</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous"/>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f4f6f8; /* Softer background */
+            font-size: 0.95rem;
+        }
+
+        .navbar {
+            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
+        }
+        .navbar-brand {
+            font-weight: 600;
+        }
+
+        .sidebar {
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 100; /* Behind navbar */
+            padding: 56px 0 0; /* Navbar height */
+            box-shadow: inset -1px 0 0 rgba(0, 0, 0, .075);
+            background-color: #ffffff;
+        }
+
+        /* Sidebar for mobile (when collapsed) */
+        @media (max-width: 767.98px) {
+            .sidebar {
+                top: 56px; /* Start below navbar */
+                padding-top: 0;
+                z-index: 1040; /* Above content when shown as overlay */
+                height: calc(100vh - 56px); /* Full height minus navbar */
+            }
+            .main-content {
+                padding-top: calc(56px + 1rem); /* Navbar height + desired top padding */
+            }
+        }
+
+        .sidebar-sticky {
+            position: relative;
+            top: 0;
+            height: calc(100vh - 56px);
+            padding-top: 1rem;
+            overflow-x: hidden;
+            overflow-y: auto; /* Scrollable contents if viewport is shorter than content. */
+        }
+
+        .nav-link {
+            color: #495057;
+            font-weight: 500;
+            padding: .65rem 1rem;
+            border-radius: .375rem;
+            margin: .1rem .5rem; /* Margin for spacing between items */
+        }
+        .nav-link:hover {
+            background-color: #e9ecef;
+            color: #0d6efd;
+        }
+        .nav-link.active {
+            background-color: #0d6efd;
+            color: white;
+        }
+        .nav-link.active:hover {
+            background-color: #0b5ed7; /* Darker on hover for active */
+            color: white;
+        }
+        .nav-link .fas, .nav-link .far, .nav-link .fab {
+            margin-right: 10px;
+            width: 20px;
+            text-align: center;
+        }
+        
+        .main-content {
+            padding-top: calc(56px + 1.5rem); /* Navbar height + desired top padding */
+        }
+
+        .content-section {
+            display: none;
+            padding-top: 0; /* Section title provides padding */
+        }
+        .content-section.active {
+            display: block;
+        }
+
+        .card {
+            border: none;
+            box-shadow: 0 0.25rem 0.75rem rgba(0,0,0,0.05); /* Softer, more diffused shadow */
+            border-radius: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .card-header {
+            background-color: #ffffff;
+            border-bottom: 1px solid #f0f0f0;
+            font-weight: 600;
+            padding: 0.75rem 1.25rem;
+        }
+        .card-body {
+            padding: 1.25rem;
+        }
+        .card-body .table th, .card-body .table td {
+            vertical-align: middle;
+        }
+        .table th {
+            font-weight: 600;
+            background-color: #f8f9fa; /* Light grey for table headers */
+        }
+        .table-striped > tbody > tr:nth-of-type(odd) > * {
+            --bs-table-accent-bg: rgba(0,0,0,0.025); /* Lighter stripe */
+        }
+
+        #map { height: 400px; border-radius: 0.375rem; }
+        .loading-spinner, .no-data-message {
+            text-align: center;
+            padding: 40px 20px;
+            font-size: 1.1em;
+            color: #6c757d;
+        }
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+        }
+
+        .screenshot-img {
+            max-width: 180px;
+            max-height: 180px;
+            margin: 8px;
+            border: 1px solid #dee2e6;
+            cursor: pointer;
+            border-radius: .25rem;
+            transition: transform 0.2s ease-in-out;
+        }
+        .screenshot-img:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0.25rem 0.5rem rgba(0,0,0,0.1);
+        }
+
+        .editable-alias {
+            display: flex;
+            align-items: center;
+        }
+        .editable-alias input {
+            margin-right: 0.5rem;
+        }
+        
+        .btn {
+            font-weight: 500;
+            border-radius: 0.375rem;
+        }
+        .btn-primary {
+            box-shadow: 0 0.125rem 0.25rem rgba(13, 110, 253, 0.3);
+        }
+        .btn-sm {
+            padding: .3rem .75rem; /* Slightly larger sm buttons */
+            font-size: .875rem;
+        }
+
+        .login-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #e9ecef; /* Light gray for login page background */
+        }
+        .login-form {
+            width: 100%;
+            max-width: 420px;
+            padding: 30px;
+            background-color: #fff;
+            border-radius: 0.5rem;
+            box-shadow: 0 0.5rem 1.5rem rgba(0,0,0,0.1);
+        }
+        .form-control:focus {
+            border-color: #86b7fe;
+            box-shadow: 0 0 0 0.25rem rgba(13,110,253,.25);
+        }
+        /* Topbar Device Selector & Logout */
+        .navbar .form-select-sm {
+             height: auto; /* auto height based on padding */
+             padding: .35rem .75rem;
+             font-size: .875rem;
+             line-height: 1.5;
+             border-radius: .3rem;
+        }
+        .navbar .btn-sm {
+             padding: .35rem .75rem;
+             font-size: .875rem;
+        }
+        .navbar-toggler:focus {
+            box-shadow: none;
+        }
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap; /* Allow wrapping on small screens */
+            align-items: center;
+            padding-top: 0.5rem; /* Adjusted from pt-3 */
+            padding-bottom: 0.75rem; /* Adjusted from pb-2 */
+            margin-bottom: 1rem; /* Adjusted from mb-3 */
+            border-bottom: 1px solid #dee2e6;
+        }
+        .section-header h1.h2 {
+            margin-bottom: 0; /* Remove default h2 margin */
+            font-size: 1.75rem; /* Slightly smaller H2 */
+        }
+        .section-header .btn { /* Ensure button aligns well and doesn't cause too much space on wrap */
+            margin-top: 0.5rem; /* Add some space if it wraps below title */
+        }
+        @media (min-width: 576px) { /* sm and up */
+            .section-header .btn {
+                margin-top: 0; /* No margin if on same line */
+            }
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- Login View -->
+    <div id="loginView" class="login-container">
+        <div class="login-form">
+            <div class="text-center mb-4">
+                <i class="fas fa-shield-alt fa-3x text-primary"></i>
+                <h2 class="mt-2">Admin Panel Login</h2>
+            </div>
+            <form id="loginForm">
+                <div class="mb-3">
+                    <label for="email" class="form-label">Email address</label>
+                    <input type="email" class="form-control" id="email" required placeholder="name@example.com">
+                </div>
+                <div class="mb-3">
+                    <label for="password" class="form-label">Password</label>
+                    <input type="password" class="form-control" id="password" required placeholder="Password">
+                </div>
+                <button type="submit" class="btn btn-primary w-100 py-2 mt-2">Login</button>
+                <div id="loginError" class="text-danger mt-3 text-center"></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Dashboard View -->
+    <div id="dashboardView" style="display: none;">
+        <header class="navbar navbar-light bg-white fixed-top flex-md-nowrap p-0 shadow-sm">
+            <a class="navbar-brand col-md-3 col-lg-2 me-0 px-3" href="#">Admin Panel</a>
+            <button class="navbar-toggler position-absolute d-md-none collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="d-flex align-items-center ms-auto px-3">
+                <div class="me-2 me-md-3 d-flex align-items-center">
+                    <label for="deviceSelector" class="form-label-sm me-2 d-none d-sm-inline-block fw-normal">Device:</label>
+                    <select id="deviceSelector" class="form-select form-select-sm" style="min-width: 100px; max-width:180px;"></select>
+                </div>
+                <button id="logoutButton" class="btn btn-outline-danger btn-sm">
+                    <span class="d-none d-sm-inline-block">Logout</span>
+                    <i class="fas fa-sign-out-alt d-sm-none"></i>
+                </button>
+            </div>
+        </header>
+
+        <div class="container-fluid">
+            <div class="row">
+                <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block sidebar collapse">
+                    <div class="sidebar-sticky">
+                        <ul class="nav flex-column nav-pills">
+                            <li class="nav-item">
+                                <a class="nav-link active" href="#" data-section="overview">
+                                    <i class="fas fa-tachometer-alt"></i> Device Overview
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" data-section="messages">
+                                    <i class="fas fa-comments"></i> Messages
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" data-section="calls">
+                                    <i class="fas fa-phone-alt"></i> Call Logs
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" data-section="apps">
+                                    <i class="fas fa-th-large"></i> Installed Apps
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" data-section="battery">
+                                    <i class="fas fa-battery-full"></i> Battery Info
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" data-section="gps">
+                                    <i class="fas fa-map-marker-alt"></i> GPS Location
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" data-section="files">
+                                    <i class="fas fa-folder"></i> File Logs
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" data-section="screenshots">
+                                    <i class="fas fa-camera"></i> Screenshots
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" data-section="notifications">
+                                    <i class="fas fa-bell"></i> Notifications
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" data-section="device_info">
+                                    <i class="fas fa-info-circle"></i> Device Info
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </nav>
+
+                <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content">
+                    <div id="contentArea">
+                        <!-- Sections will be loaded here -->
+                        <div id="overview" class="content-section active">
+                            <div class="section-header">
+                                <h1 class="h2">Device Overview</h1>
+                                <button class="btn btn-sm btn-outline-secondary export-btn" data-section="overview"><i class="fas fa-download me-1"></i> Export CSV</button>
+                            </div>
+                            <div id="overviewContent" class="row">
+                                <div class="col-lg-6 mb-3">
+                                    <div class="card">
+                                        <div class="card-header">Device Alias</div>
+                                        <div class="card-body editable-alias">
+                                            <input type="text" id="deviceAliasInput" class="form-control form-control-sm" placeholder="Enter device alias">
+                                            <button id="saveAliasButton" class="btn btn-sm btn-primary">Save</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-lg-6 mb-3">
+                                    <div class="card">
+                                        <div class="card-header">Status</div>
+                                        <div class="card-body">
+                                            <p class="mb-2"><strong>Online Status:</strong> <span id="deviceOnlineStatus">-</span></p>
+                                            <p class="mb-0"><strong>Last Seen:</strong> <span id="deviceLastSeen">-</span></p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="messages" class="content-section">
+                             <div class="section-header">
+                                <h1 class="h2">Messages</h1>
+                                <button class="btn btn-sm btn-outline-secondary export-btn" data-section="messages"><i class="fas fa-download me-1"></i> Export CSV</button>
+                            </div>
+                            <div id="messagesContent" class="card"><div class="card-body p-0"></div></div>
+                        </div>
+
+                        <div id="calls" class="content-section">
+                            <div class="section-header">
+                                <h1 class="h2">Call Logs</h1>
+                                <button class="btn btn-sm btn-outline-secondary export-btn" data-section="calls"><i class="fas fa-download me-1"></i> Export CSV</button>
+                            </div>
+                           <div id="callsContent" class="card"><div class="card-body p-0"></div></div>
+                        </div>
+
+                        <div id="apps" class="content-section">
+                             <div class="section-header">
+                                <h1 class="h2">Installed Apps</h1>
+                                <button class="btn btn-sm btn-outline-secondary export-btn" data-section="apps"><i class="fas fa-download me-1"></i> Export CSV</button>
+                            </div>
+                            <div id="appsContent" class="card"><div class="card-body p-0"></div></div>
+                        </div>
+
+                        <div id="battery" class="content-section">
+                            <div class="section-header">
+                                <h1 class="h2">Battery Info</h1>
+                                <button class="btn btn-sm btn-outline-secondary export-btn" data-section="battery"><i class="fas fa-download me-1"></i> Export CSV</button>
+                            </div>
+                            <div id="batteryContent" class="card"><div class="card-body"></div></div>
+                        </div>
+
+                        <div id="gps" class="content-section">
+                            <div class="section-header">
+                                <h1 class="h2">GPS Location</h1>
+                                <!-- CSV for coordinates list if applicable -->
+                                <button class="btn btn-sm btn-outline-secondary export-btn" data-section="gps"><i class="fas fa-download me-1"></i> Export Coordinates</button>
+                            </div>
+                            <div class="card">
+                                <div class="card-body">
+                                    <div id="map"></div>
+                                    <div id="gpsContentDetails" class="mt-3"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="files" class="content-section">
+                            <div class="section-header">
+                                <h1 class="h2">File Logs</h1>
+                                <button class="btn btn-sm btn-outline-secondary export-btn" data-section="files"><i class="fas fa-download me-1"></i> Export CSV</button>
+                            </div>
+                            <div id="filesContent" class="card"><div class="card-body p-0"></div></div>
+                        </div>
+
+                        <div id="screenshots" class="content-section">
+                            <div class="section-header">
+                                <h1 class="h2">Screenshots</h1>
+                                <button class="btn btn-sm btn-outline-secondary export-btn" data-section="screenshots_urls"><i class="fas fa-download me-1"></i> Export URLs CSV</button>
+                            </div>
+                            <div id="screenshotsContentParent" class="card">
+                                <div class="card-body">
+                                    <div id="screenshotsContent" class="d-flex flex-wrap justify-content-center"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="notifications" class="content-section">
+                            <div class="section-header">
+                                <h1 class="h2">Notifications</h1>
+                                <button class="btn btn-sm btn-outline-secondary export-btn" data-section="notifications"><i class="fas fa-download me-1"></i> Export CSV</button>
+                            </div>
+                            <div id="notificationsContent" class="card"><div class="card-body p-0"></div></div>
+                        </div>
+
+                        <div id="device_info" class="content-section">
+                            <div class="section-header">
+                                <h1 class="h2">Device Info</h1>
+                                <button class="btn btn-sm btn-outline-secondary export-btn" data-section="device_info"><i class="fas fa-download me-1"></i> Export CSV</button>
+                            </div>
+                            <div id="deviceInfoContent" class="card"><div class="card-body"></div></div>
+                        </div>
+                    </div>
+                </main>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for viewing full size image -->
+    <div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-centered"> <!-- modal-xl for larger image view -->
+        <div class="modal-content bg-transparent border-0"> <!-- Transparent modal for image focus -->
+          <div class="modal-header border-0 pb-0">
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="filter: drop-shadow(0 1px 2px rgba(0,0,0,.5));"></button>
+          </div>
+          <div class="modal-body text-center p-0">
+            <img id="fullSizeImage" src="" class="img-fluid" alt="Full size screenshot" style="max-height: 90vh; border-radius: .3rem; box-shadow: 0 .5rem 1rem rgba(0,0,0,.15);">
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
+
+    <script type="module">
+        // Firebase v9 Modular SDK
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut as firebaseSignOut } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
+        import { getDatabase, ref, onValue, set, get, update, off } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyADpoTdgf5MZn7yPplT_cSRA8fngJvjibw",
+            authDomain: "victimdataproject.firebaseapp.com",
+            databaseURL: "https://victimdataproject-default-rtdb.firebaseio.com/",
+            projectId: "victimdataproject",
+            storageBucket: "victimdataproject.firebasestorage.app",
+            messagingSenderId: "938788267301",
+            appId: "1:938788267301:web:cdcff391160dce48fa66cc"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+
+        // Global state
+        let currentUid = null;
+        let activeFirebaseListeners = [];
+        let leafletMap = null;
+        let mapMarker = null;
+        let currentDataForExport = {}; 
+
+        // DOM Elements
+        const loginView = document.getElementById('loginView');
+        const dashboardView = document.getElementById('dashboardView');
+        const loginForm = document.getElementById('loginForm');
+        const loginError = document.getElementById('loginError');
+        const logoutButton = document.getElementById('logoutButton');
+        const deviceSelector = document.getElementById('deviceSelector');
+        const sidebarLinks = document.querySelectorAll('.sidebar .nav-link');
+        const exportButtons = document.querySelectorAll('.export-btn');
+
+        // --- Utility Functions ---
+        function formatTimestamp(timestamp, includeTime = true) {
+            if (!timestamp) return 'N/A';
+            const date = new Date(timestamp);
+            if (includeTime) {
+                return date.toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            }
+            return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+        }
+
+        function showLoading(elementIdOrContainer, isCardBody = false) {
+            let el = typeof elementIdOrContainer === 'string' ? document.getElementById(elementIdOrContainer) : elementIdOrContainer;
+            if (isCardBody && el) el = el.querySelector('.card-body'); // Target card-body for tables
+            
+            if (el) {
+                el.innerHTML = `<div class="loading-spinner"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>`;
+            }
+        }
+
+        function showNoData(elementIdOrContainer, message = "No data found.", isCardBody = false) {
+            let el = typeof elementIdOrContainer === 'string' ? document.getElementById(elementIdOrContainer) : elementIdOrContainer;
+             if (isCardBody && el) el = el.querySelector('.card-body');
+
+            if (el) {
+                el.innerHTML = `<div class="no-data-message p-3">${message}</div>`;
+            }
+        }
+        
+        // For tables, render inside .card-body of the container
+        function renderTable(containerId, data, columns) {
+            const container = document.getElementById(containerId);
+            const cardBody = container.querySelector('.card-body');
+
+            if (!data || data.length === 0) {
+                showNoData(cardBody || container, "No data found."); // if cardBody doesn't exist, show in container
+                currentDataForExport[containerId.replace('Content', '')] = [];
+                return;
+            }
+
+            let tableHTML = '<div class="table-responsive"><table class="table table-striped table-hover table-sm mb-0">'; // mb-0 for no bottom margin in card
+            tableHTML += '<thead><tr>';
+            columns.forEach(col => tableHTML += `<th scope="col">${col.header}</th>`);
+            tableHTML += '</tr></thead><tbody>';
+
+            const exportableData = [];
+            data.forEach(item => {
+                tableHTML += '<tr>';
+                const rowData = {};
+                columns.forEach(col => {
+                    let value = item[col.key];
+                    if (col.formatter) {
+                        value = col.formatter(value, item);
+                    }
+                    tableHTML += `<td>${value === undefined || value === null ? '–' : value}</td>`;
+                    rowData[col.header] = value === undefined || value === null ? '' : String(value).replace(/<[^>]*>?/gm, ''); // Strip HTML for CSV
+                });
+                tableHTML += '</tr>';
+                exportableData.push(rowData);
+            });
+
+            tableHTML += '</tbody></table></div>';
+            if (cardBody) cardBody.innerHTML = tableHTML;
+            else container.innerHTML = tableHTML;
+            
+            currentDataForExport[containerId.replace('Content', '')] = exportableData;
+        }
+        
+        // For key-value lists, render inside .card-body
+        function renderKeyValueList(containerId, data) {
+            const container = document.getElementById(containerId);
+            const cardBody = container.querySelector('.card-body');
+
+            if (!data || Object.keys(data).length === 0) {
+                showNoData(cardBody || container, "No data found.");
+                currentDataForExport[containerId.replace('Content', '')] = [];
+                return;
+            }
+            let listHTML = '<ul class="list-group list-group-flush">'; // flush for no borders in card
+            const exportableData = [];
+            for (const key in data) {
+                if (data.hasOwnProperty(key)) {
+                    const value = (typeof data[key] === 'object') ? JSON.stringify(data[key]) : data[key];
+                    listHTML += `<li class="list-group-item d-flex justify-content-between align-items-center flex-wrap">
+                                    <strong class="me-2">${String(key).charAt(0).toUpperCase() + String(key).slice(1).replace(/([A-Z])/g, ' $1').trim()}:</strong>
+                                    <span class="text-muted text-break">${value || '–'}</span>
+                                 </li>`;
+                    exportableData.push({ Key: key, Value: value });
+                }
+            }
+            listHTML += '</ul>';
+            if (cardBody) cardBody.innerHTML = listHTML;
+            else container.innerHTML = listHTML;
+
+            currentDataForExport[containerId.replace('Content', '')] = exportableData;
+        }
+
+
+        // --- Firebase Listeners Management ---
+        function detachAllFirebaseListeners() {
+            activeFirebaseListeners.forEach(unsubscribe => unsubscribe());
+            activeFirebaseListeners = [];
+        }
+
+        function addFirebaseListener(path, callback) {
+            const dataRef = ref(db, path);
+            const unsubscribe = onValue(dataRef, callback, (error) => {
+                console.error(`Error listening to ${path}:`, error);
+            });
+            activeFirebaseListeners.push(unsubscribe);
+        }
+
+        // --- Auth Functions ---
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            loginError.textContent = '';
+            loginForm.querySelector('button[type="submit"]').disabled = true;
+            loginForm.querySelector('button[type="submit"]').innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Logging in...`;
+
+
+            signInWithEmailAndPassword(auth, email, password)
+                .then((userCredential) => {
+                    // Signed in - onAuthStateChanged will handle UI
+                })
+                .catch((error) => {
+                    loginError.textContent = error.code === 'auth/invalid-credential' ? 'Invalid email or password.' : error.message;
+                })
+                .finally(() => {
+                    loginForm.querySelector('button[type="submit"]').disabled = false;
+                    loginForm.querySelector('button[type="submit"]').innerHTML = `Login`;
+                });
+        });
+
+        logoutButton.addEventListener('click', () => {
+            firebaseSignOut(auth).catch(error => console.error("Logout error", error));
+        });
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                loginView.style.display = 'none';
+                dashboardView.style.display = 'block';
+                fetchDeviceUIDs();
+                initializeMap();
+            } else {
+                loginView.style.display = 'flex';
+                dashboardView.style.display = 'none';
+                currentUid = null;
+                deviceSelector.innerHTML = '<option>No devices</option>';
+                detachAllFirebaseListeners();
+                clearAllSections(); 
+            }
+        });
+        
+        function clearAllSections() {
+            // For sections that render into card-body directly
+            ['messagesContent', 'callsContent', 'appsContent', 'batteryContent', 
+             'filesContent', 'notificationsContent', 'deviceInfoContent'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el && el.querySelector('.card-body')) {
+                    el.querySelector('.card-body').innerHTML = '';
+                } else if (el) { // For overviewContent or others not in card-body
+                     el.innerHTML = '';
+                }
+             });
+            // Specific for GPS
+            if (document.getElementById('gpsContentDetails')) document.getElementById('gpsContentDetails').innerHTML = '';
+            if (leafletMap && mapMarker) {
+                leafletMap.removeLayer(mapMarker);
+                mapMarker = null;
+                // Don't re-center map, user might be looking at a region
+            }
+            // Specific for screenshots
+            if (document.getElementById('screenshotsContent')) document.getElementById('screenshotsContent').innerHTML = '';
+            
+            // Reset overview fields
+            document.getElementById('deviceAliasInput').value = '';
+            document.getElementById('deviceOnlineStatus').textContent = '-';
+            document.getElementById('deviceLastSeen').textContent = '-';
+        }
+
+
+        // --- Device Management ---
+        async function fetchDeviceUIDs() {
+            const devicesRef = ref(db, 'devices');
+            deviceSelector.disabled = true;
+            try {
+                const snapshot = await get(devicesRef);
+                if (snapshot.exists()) {
+                    const uids = Object.keys(snapshot.val());
+                    populateDeviceSelector(uids);
+                    if (uids.length > 0) {
+                        const lastSelectedUid = localStorage.getItem('lastSelectedUid');
+                        if (lastSelectedUid && uids.includes(lastSelectedUid)) {
+                             deviceSelector.value = lastSelectedUid;
+                        } else {
+                             deviceSelector.value = uids[0];
+                        }
+                        handleDeviceChange(); 
+                    } else {
+                        deviceSelector.innerHTML = '<option value="">No devices</option>';
+                        showNoData('overviewContent', "No devices found in the database.");
+                        // Clear other sections as well or show specific messages
+                        Object.keys(sectionLoaders).forEach(sectionId => {
+                            if (sectionId !== 'overview') {
+                                const contentEl = document.getElementById(`${sectionId}Content`);
+                                if (contentEl && contentEl.querySelector('.card-body')) {
+                                    showNoData(contentEl.querySelector('.card-body'), "No devices available.");
+                                } else if (contentEl) {
+                                     showNoData(contentEl, "No devices available.");
+                                }
+                            }
+                        });
+                    }
+                } else {
+                    deviceSelector.innerHTML = '<option value="">No devices</option>';
+                     showNoData('overviewContent', "No devices found in the database.");
+                }
+            } catch (error) {
+                console.error("Error fetching device UIDs:", error);
+                deviceSelector.innerHTML = '<option value="">Error loading</option>';
+                 showNoData('overviewContent', "Error loading devices.");
+            } finally {
+                deviceSelector.disabled = false;
+            }
+        }
+
+        function populateDeviceSelector(uids) {
+            deviceSelector.innerHTML = ''; 
+            if (uids.length === 0) {
+                deviceSelector.innerHTML = '<option value="">No devices</option>';
+                return;
+            }
+            uids.forEach(uid => {
+                const option = document.createElement('option');
+                option.value = uid;
+                // Placeholder for alias, will be updated if alias exists
+                option.textContent = uid.substring(0, 8) + '...'; 
+                deviceSelector.appendChild(option);
+
+                // Attempt to fetch alias for prettier display
+                const aliasRef = ref(db, `devices/${uid}/alias`);
+                get(aliasRef).then(snapshot => {
+                    if (snapshot.exists() && snapshot.val()) {
+                        option.textContent = snapshot.val();
+                    }
+                });
+            });
+        }
+
+        deviceSelector.addEventListener('change', handleDeviceChange);
+
+        function handleDeviceChange() {
+            const selectedUid = deviceSelector.value;
+            if (selectedUid) {
+                currentUid = selectedUid;
+                localStorage.setItem('lastSelectedUid', currentUid);
+                detachAllFirebaseListeners(); 
+                loadDataForCurrentDevice(); 
+            } else {
+                currentUid = null;
+                detachAllFirebaseListeners();
+                clearAllSections();
+                 showNoData('overviewContent', "Please select a device.");
+            }
+        }
+        
+        function loadDataForCurrentDevice() {
+            if (!currentUid) return;
+            const activeSectionId = document.querySelector('.sidebar .nav-link.active').dataset.section;
+            loadSectionData(activeSectionId); // Load active section first
+            setupAllFirebaseListeners(); // Setup all listeners for real-time
+        }
+
+        function setupAllFirebaseListeners() {
+            if (!currentUid) return;
+            
+            addFirebaseListener(`devices/${currentUid}/alias`, snapshot => {
+                const alias = snapshot.val();
+                document.getElementById('deviceAliasInput').value = alias || '';
+                currentDataForExport['overview_alias'] = [{ Alias: alias || '' }];
+                // Update device selector text if currentUid matches
+                const selectedOption = deviceSelector.querySelector(`option[value="${currentUid}"]`);
+                if (selectedOption && alias) {
+                    selectedOption.textContent = alias;
+                } else if (selectedOption) {
+                    selectedOption.textContent = currentUid.substring(0, 8) + '...';
+                }
+            });
+            addFirebaseListener(`devices/${currentUid}/lastSeen`, snapshot => {
+                const lastSeen = snapshot.val();
+                document.getElementById('deviceLastSeen').textContent = formatTimestamp(lastSeen);
+                const now = Date.now();
+                const fiveMinutes = 5 * 60 * 1000;
+                const isOnline = lastSeen && (now - lastSeen < fiveMinutes);
+                document.getElementById('deviceOnlineStatus').innerHTML = isOnline 
+                    ? '<span class="badge bg-success">Online</span>' 
+                    : '<span class="badge bg-danger">Offline</span>';
+                currentDataForExport['overview_status'] = [{ LastSeen: formatTimestamp(lastSeen), Status: isOnline ? 'Online' : 'Offline' }];
+            });
+            // Sections that depend on onValue for their primary data
+            loadSectionData("messages"); loadSectionData("calls"); loadSectionData("apps");
+            loadSectionData("battery"); loadSectionData("gps"); loadSectionData("files");
+            loadSectionData("screenshots"); loadSectionData("notifications"); loadSectionData("device_info");
+        }
+
+        const sectionLoaders = {
+            'overview': loadDeviceOverview, 'messages': loadMessages, 'calls': loadCallLogs,
+            'apps': loadInstalledApps, 'battery': loadBatteryInfo, 'gps': loadGpsLocation,
+            'files': loadFileLogs, 'screenshots': loadScreenshots, 'notifications': loadNotifications,
+            'device_info': loadDeviceInfo,
+        };
+
+        function loadSectionData(sectionId) {
+            if (!currentUid) {
+                const contentElId = `${sectionId}Content`;
+                const contentEl = document.getElementById(contentElId);
+                let targetEl = contentEl;
+                if (contentEl && contentEl.classList.contains('card') && contentEl.querySelector('.card-body')) {
+                    targetEl = contentEl.querySelector('.card-body');
+                } else if (sectionId === 'gps') {
+                    targetEl = document.getElementById('gpsContentDetails');
+                }
+                 if(targetEl) showNoData(targetEl, "Please select a device.");
+                return;
+            }
+            const loader = sectionLoaders[sectionId];
+            if (loader) {
+                let contentElId = sectionId === 'overview' ? 'overviewContent' : `${sectionId}Content`;
+                let targetEl = document.getElementById(contentElId);
+                 if (sectionId !== 'overview' && targetEl) {
+                    // For table/list sections, loading spinner goes into card-body
+                    if (targetEl.classList.contains('card') && targetEl.querySelector('.card-body')) {
+                        showLoading(targetEl.querySelector('.card-body'));
+                    } else if (sectionId === 'gps') {
+                        showLoading(document.getElementById('gpsContentDetails')); // GPS details
+                    } else if (sectionId === 'screenshots') {
+                         showLoading(document.getElementById('screenshotsContent'));
+                    } else if(targetEl) { // Fallback for simple divs
+                        showLoading(targetEl);
+                    }
+                }
+                loader();
+            }
+        }
+        
+        function loadDeviceOverview() { /* Handled by individual listeners */ }
+
+        document.getElementById('saveAliasButton').addEventListener('click', () => {
+            if (!currentUid) return;
+            const newAlias = document.getElementById('deviceAliasInput').value.trim();
+            const aliasRef = ref(db, `devices/${currentUid}/alias`);
+            const btn = document.getElementById('saveAliasButton');
+            btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+            set(aliasRef, newAlias)
+                .then(() => { /* Success, onValue will update UI */ })
+                .catch(err => alert('Error saving alias: ' + err.message))
+                .finally(() => {btn.disabled = false; btn.textContent = 'Save';});
+        });
+
+        function loadMessages() {
+            addFirebaseListener(`devices/${currentUid}/messages`, (snapshot) => {
+                const data = snapshot.val();
+                const messagesArray = data ? Object.values(data).map(m => ({...m, id: m.timestamp + m.address })) : []; // Add unique ID if needed
+                renderTable('messagesContent', messagesArray.sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0)), [
+                    { header: 'Date', key: 'timestamp', formatter: formatTimestamp },
+                    { header: 'Type', key: 'type' }, { header: 'Address', key: 'address' }, { header: 'Body', key: 'body' },
+                ]);
+            });
+        }
+
+        function loadCallLogs() {
+            addFirebaseListener(`devices/${currentUid}/calls`, (snapshot) => {
+                const data = snapshot.val();
+                const callsArray = data ? Object.values(data) : [];
+                renderTable('callsContent', callsArray.sort((a,b) => (b.date || 0) - (a.date || 0)), [
+                    { header: 'Date', key: 'date', formatter: formatTimestamp },
+                    { header: 'Number', key: 'number' }, { header: 'Type', key: 'type' },
+                    { header: 'Duration', key: 'duration', formatter: (d) => d ? `${d}s` : '–' },
+                ]);
+            });
+        }
+        
+        function loadInstalledApps() {
+            addFirebaseListener(`devices/${currentUid}/apps`, (snapshot) => {
+                const data = snapshot.val();
+                const appsArray = data ? Object.values(data) : [];
+                renderTable('appsContent', appsArray.sort((a,b) => (a.appName || '').localeCompare(b.appName || '')), [
+                    { header: 'App Name', key: 'appName' }, { header: 'Package', key: 'packageName' },
+                    { header: 'Version', key: 'versionName' },
+                ]);
+            });
+        }
+
+        function loadBatteryInfo() {
+            addFirebaseListener(`devices/${currentUid}/battery`, (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    const batteryDataFormatted = {
+                        Level: `${data.level || 'N/A'}%`,
+                        Status: data.status || 'N/A',
+                        Health: data.health || 'N/A',
+                        Temperature: data.temperature ? `${data.temperature}°C` : 'N/A',
+                        Plugged: data.plugged || 'N/A',
+                        Voltage: data.voltage ? `${data.voltage}mV` : 'N/A'
+                    };
+                    renderKeyValueList('batteryContent', batteryDataFormatted);
+                    currentDataForExport['battery'] = Object.entries(batteryDataFormatted).map(([k,v]) => ({Key: k, Value: v}));
+                } else {
+                    showNoData(document.getElementById('batteryContent').querySelector('.card-body'));
+                    currentDataForExport['battery'] = [];
+                }
+            });
+        }
+        
+        function initializeMap() {
+            if (!leafletMap && document.getElementById('map')) {
+                 leafletMap = L.map('map').setView([20, 0], 2); // Default wider view
+                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© <a href="https://www.openstreetmap.org/copyright">OSM</a>', maxZoom: 18
+                 }).addTo(leafletMap);
+            }
+        }
+
+        function loadGpsLocation() {
+            addFirebaseListener(`devices/${currentUid}/gps`, (snapshot) => {
+                const data = snapshot.val();
+                const detailsContainer = document.getElementById('gpsContentDetails');
+                if (data && data.latitude && data.longitude) {
+                    const latLng = [data.latitude, data.longitude];
+                    if (!leafletMap) initializeMap();
+
+                    if (leafletMap) {
+                        if (!mapMarker) {
+                            mapMarker = L.marker(latLng).addTo(leafletMap);
+                        } else {
+                            mapMarker.setLatLng(latLng);
+                        }
+                        leafletMap.setView(latLng, 16); // Zoom in closer
+                        mapMarker.bindPopup(`<b>Location Update</b><br>Lat: ${data.latitude.toFixed(5)}<br>Lng: ${data.longitude.toFixed(5)}<br>Time: ${formatTimestamp(data.timestamp)}<br>Accuracy: ${data.accuracy ? data.accuracy.toFixed(1) + 'm' : 'N/A'}`).openPopup();
+                    }
+                    
+                    detailsContainer.innerHTML = `<ul class="list-group list-group-flush">
+                        <li class="list-group-item"><strong>Latitude:</strong> ${data.latitude.toFixed(5)}</li>
+                        <li class="list-group-item"><strong>Longitude:</strong> ${data.longitude.toFixed(5)}</li>
+                        <li class="list-group-item"><strong>Timestamp:</strong> ${formatTimestamp(data.timestamp)}</li>
+                        <li class="list-group-item"><strong>Accuracy:</strong> ${data.accuracy ? data.accuracy.toFixed(1) + 'm' : 'N/A'}</li>
+                        <li class="list-group-item"><strong>Provider:</strong> ${data.provider || 'N/A'}</li>
+                        <li class="list-group-item"><a href="https://www.google.com/maps?q=${data.latitude},${data.longitude}" target="_blank" class="btn btn-sm btn-outline-primary mt-2">Open in Google Maps</a></li>
+                    </ul>`;
+                    currentDataForExport['gps'] = [{ ...data, timestamp: formatTimestamp(data.timestamp) }];
+                } else {
+                    if (mapMarker && leafletMap) leafletMap.removeLayer(mapMarker); mapMarker = null;
+                    showNoData(detailsContainer, 'No GPS data available.');
+                    currentDataForExport['gps'] = [];
+                }
+            });
+        }
+
+        function loadFileLogs() {
+             addFirebaseListener(`devices/${currentUid}/files`, (snapshot) => {
+                const data = snapshot.val();
+                const filesArray = data ? Object.values(data) : [];
+                renderTable('filesContent', filesArray.sort((a,b) => (b.lastModified || 0) - (a.lastModified || 0)), [
+                    { header: 'Name', key: 'name' }, { header: 'Path', key: 'path' },
+                    { header: 'Size', key: 'size', formatter: (s) => s ? `${(s/1024).toFixed(2)} KB` : 'N/A' },
+                    { header: 'Modified', key: 'lastModified', formatter: formatTimestamp },
+                ]);
+            });
+        }
+
+        function loadScreenshots() {
+            addFirebaseListener(`devices/${currentUid}/screenshots`, (snapshot) => {
+                const data = snapshot.val();
+                const container = document.getElementById('screenshotsContent');
+                const urlsForExport = [];
+                if (data) {
+                    const screenshotsArray = Object.values(data).sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
+                    container.innerHTML = ''; 
+                    if (screenshotsArray.length === 0) {
+                        showNoData(container, 'No screenshots found.'); currentDataForExport['screenshots_urls'] = []; return;
+                    }
+                    screenshotsArray.forEach(ss => {
+                        if (ss.url) {
+                            const img = document.createElement('img');
+                            img.src = ss.url; img.alt = `Screenshot ${formatTimestamp(ss.timestamp, false)}`;
+                            img.title = `Screenshot, ${formatTimestamp(ss.timestamp)}`; img.className = 'screenshot-img img-thumbnail';
+                            img.setAttribute('data-bs-toggle', 'modal'); img.setAttribute('data-bs-target', '#imageModal');
+                            img.onclick = () => { document.getElementById('fullSizeImage').src = ss.url; };
+                            container.appendChild(img);
+                            urlsForExport.push({ URL: ss.url, Timestamp: formatTimestamp(ss.timestamp) });
+                        }
+                    });
+                    currentDataForExport['screenshots_urls'] = urlsForExport;
+                } else {
+                    showNoData(container, 'No screenshots found.'); currentDataForExport['screenshots_urls'] = [];
+                }
+            });
+        }
+
+        function loadNotifications() {
+            addFirebaseListener(`devices/${currentUid}/notifications`, (snapshot) => {
+                const data = snapshot.val();
+                const notificationsArray = data ? Object.values(data) : [];
+                renderTable('notificationsContent', notificationsArray.sort((a,b) => (b.postTime || 0) - (a.postTime || 0)), [
+                    { header: 'Time', key: 'postTime', formatter: formatTimestamp },
+                    { header: 'App', key: 'packageName' }, { header: 'Title', key: 'title' }, { header: 'Text', key: 'text' },
+                ]);
+            });
+        }
+
+        function loadDeviceInfo() {
+            addFirebaseListener(`devices/${currentUid}/info`, (snapshot) => {
+                const data = snapshot.val();
+                renderKeyValueList('deviceInfoContent', data); // Data is already an object
+            });
+        }
+        
+        // --- Sidebar Navigation ---
+        sidebarLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                sidebarLinks.forEach(l => l.classList.remove('active'));
+                link.classList.add('active');
+
+                document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
+                const sectionId = link.dataset.section;
+                document.getElementById(sectionId).classList.add('active');
+                
+                loadSectionData(sectionId); 
+                
+                if (sectionId === 'gps' && leafletMap) {
+                    // Invalidate map size after a short delay to ensure DOM is ready
+                    setTimeout(() => leafletMap.invalidateSize(), 150);
+                }
+                // If sidebar is collapsed (mobile), hide it after click
+                const sidebarElement = document.getElementById('sidebarMenu');
+                if (sidebarElement.classList.contains('show')) { // Bootstrap 'show' class for collapse
+                    const sidebarToggler = new bootstrap.Collapse(sidebarElement);
+                    // This is not correct for toggling. The button does the toggle.
+                    // We might need to manually trigger click on the toggler if we want to auto-close.
+                    // Or, more simply, users can close it themselves.
+                    // For now, let's not auto-close. If needed, this would be:
+                    // document.querySelector('.navbar-toggler[data-bs-target="#sidebarMenu"]').click();
+                }
+            });
+        });
+
+        // --- CSV Export ---
+        function exportToCsv(filename, rows) {
+            if (!rows || rows.length === 0) {
+                alert("No data to export for this section."); return;
+            }
+            const processRow = (rowArray) => {
+                let finalVal = '';
+                for (let j = 0; j < rowArray.length; j++) {
+                    let innerValue = rowArray[j] === null || rowArray[j] === undefined ? '' : String(rowArray[j]);
+                    if (rowArray[j] instanceof Date) innerValue = rowArray[j].toLocaleString();
+                    let result = innerValue.replace(/"/g, '""');
+                    if (result.search(/("|,|\n)/g) >= 0) result = '"' + result + '"';
+                    if (j > 0) finalVal += ',';
+                    finalVal += result;
+                }
+                return finalVal + '\n';
+            };
+            let csvFile = ''; const headers = Object.keys(rows[0]); csvFile += processRow(headers);
+            for (const item of rows) { const rowData = headers.map(header => item[header]); csvFile += processRow(rowData); }
+            const blob = new Blob(["\uFEFF" + csvFile], { type: 'text/csv;charset=utf-8;' }); // Added BOM for Excel
+            const link = document.createElement("a");
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob); link.setAttribute("href", url);
+                link.setAttribute("download", filename); link.style.visibility = 'hidden';
+                document.body.appendChild(link); link.click(); document.body.removeChild(link);
+            }
+        }
+
+        exportButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const sectionKey = button.dataset.section; 
+                let dataToExport;
+
+                if (sectionKey === "overview") {
+                    const aliasData = currentDataForExport['overview_alias'] || [{ Alias: document.getElementById('deviceAliasInput').value || '' }];
+                    const statusData = currentDataForExport['overview_status'] || [{ LastSeen: document.getElementById('deviceLastSeen').textContent, Status: document.getElementById('deviceOnlineStatus').textContent.trim() }];
+                    dataToExport = [{ Alias: aliasData[0]?.Alias, LastSeen: statusData[0]?.LastSeen, Status: statusData[0]?.Status }];
+                } else {
+                   dataToExport = currentDataForExport[sectionKey];
+                }
+                
+                if (dataToExport && dataToExport.length > 0) {
+                    const filename = `${currentUid || 'device'}_${sectionKey}_export_${new Date().toISOString().slice(0,10)}.csv`;
+                    exportToCsv(filename, dataToExport);
+                } else {
+                    alert(`No data available to export for ${sectionKey.replace(/_/g, ' ')}.`);
+                }
+            });
+        });
+
+    </script>
+</body>
+</html>
