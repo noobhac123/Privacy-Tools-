@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Device Monitor Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; /* A common modern font used by Tailwind UI */ }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        [v-cloak] { display: none; }
+        .sidebar { transition: transform 0.3s ease-in-out; }
+        .sidebar-item.active { background-color: #eef2ff; color: #4338ca; } /* indigo-50, indigo-700 */
+        .sidebar-item.active svg { color: #4f46e5; } /* indigo-600 */
+        
+        .loader {
+            border: 4px solid #f3f4f6; /* gray-100 */
+            border-top: 4px solid #3b82f6; /* blue-500 */
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 40px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .skeleton {
+            background-color: #e5e7eb; /* gray-200 */
+            border-radius: 0.25rem; /* rounded */
+            animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+        .skeleton-text { height: 1em; margin-bottom: 0.5em; width: 75%; }
+        .skeleton-text-lg { height: 1.5em; margin-bottom: 0.75em; width: 50%;}
+        .skeleton-table-row td { padding: 1rem; }
+        .skeleton-table-cell { height: 1.25em; background-color: #e5e7eb; border-radius: 0.25rem; }
+
+        /* Modal for screenshots */
+        #screenshotModal img { max-height: 85vh; }
+        
+        /* Ensure Leaflet map has a defined size */
+        #locationMap { height: 400px; width: 100%; border-radius: 0.375rem; box-shadow: 0 1px 3px 0 rgba(0,0,0,.1), 0 1px 2px -1px rgba(0,0,0,.1); }
+
+        /* Responsive sidebar */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                position: fixed;
+                height: 100vh;
+                z-index: 40; /* Ensure it's above content but below potential modals */
+            }
+            .sidebar.open {
+                transform: translateX(0);
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <!-- Login Screen -->
+    <div id="loginScreen" class="flex items-center justify-center min-h-screen bg-gray-100">
+        <div class="p-8 bg-white shadow-xl rounded-lg w-full max-w-md">
+            <div class="flex justify-center mb-6">
+                <i data-lucide="shield-check" class="h-16 w-16 text-indigo-600"></i>
+            </div>
+            <h2 class="text-3xl font-bold text-center text-gray-800 mb-6">Admin Login</h2>
+            <form id="loginForm">
+                <div class="mb-4">
+                    <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <input type="email" id="email" required class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="user@example.com">
+                </div>
+                <div class="mb-6">
+                    <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                    <input type="password" id="password" required class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="••••••••">
+                </div>
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150">
+                    Login
+                </button>
+                <p id="loginError" class="mt-4 text-sm text-red-600 text-center"></p>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Admin Panel -->
+    <div id="adminPanel" class="hidden">
+        <div class="flex h-screen bg-gray-100">
+            <!-- Sidebar -->
+            <aside id="sidebar" class="w-64 bg-white text-gray-700 shadow-lg flex-shrink-0 sidebar md:translate-x-0">
+                <div class="p-4 border-b border-gray-200">
+                    <a href="#" class="flex items-center space-x-2 text-xl font-semibold text-indigo-600">
+                        <i data-lucide="smartphone" class="h-7 w-7"></i>
+                        <span>Device Panel</span>
+                    </a>
+                </div>
+                <nav class="mt-4 flex-1">
+                    <a href="#device-info" class="sidebar-item flex items-center py-3 px-4 hover:bg-indigo-50 hover:text-indigo-700 transition-colors duration-150">
+                        <i data-lucide="info" class="h-5 w-5 mr-3"></i> Device Info
+                    </a>
+                    <a href="#sms" class="sidebar-item flex items-center py-3 px-4 hover:bg-indigo-50 hover:text-indigo-700 transition-colors duration-150">
+                        <i data-lucide="message-square" class="h-5 w-5 mr-3"></i> SMS Logs
+                    </a>
+                    <a href="#calls" class="sidebar-item flex items-center py-3 px-4 hover:bg-indigo-50 hover:text-indigo-700 transition-colors duration-150">
+                        <i data-lucide="phone" class="h-5 w-5 mr-3"></i> Call Logs
+                    </a>
+                    <a href="#apps" class="sidebar-item flex items-center py-3 px-4 hover:bg-indigo-50 hover:text-indigo-700 transition-colors duration-150">
+                        <i data-lucide="layout-grid" class="h-5 w-5 mr-3"></i> Installed Apps
+                    </a>
+                    <a href="#battery" class="sidebar-item flex items-center py-3 px-4 hover:bg-indigo-50 hover:text-indigo-700 transition-colors duration-150">
+                        <i data-lucide="battery-charging" class="h-5 w-5 mr-3"></i> Battery
+                    </a>
+                    <a href="#location" class="sidebar-item flex items-center py-3 px-4 hover:bg-indigo-50 hover:text-indigo-700 transition-colors duration-150">
+                        <i data-lucide="map-pin" class="h-5 w-5 mr-3"></i> Location
+                    </a>
+                    <a href="#files" class="sidebar-item flex items-center py-3 px-4 hover:bg-indigo-50 hover:text-indigo-700 transition-colors duration-150">
+                        <i data-lucide="folder" class="h-5 w-5 mr-3"></i> File Logs
+                    </a>
+                    <a href="#screenshots" class="sidebar-item flex items-center py-3 px-4 hover:bg-indigo-50 hover:text-indigo-700 transition-colors duration-150">
+                        <i data-lucide="camera" class="h-5 w-5 mr-3"></i> Screenshots
+                    </a>
+                    <a href="#notifications" class="sidebar-item flex items-center py-3 px-4 hover:bg-indigo-50 hover:text-indigo-700 transition-colors duration-150">
+                        <i data-lucide="bell" class="h-5 w-5 mr-3"></i> Notifications
+                    </a>
+                </nav>
+            </aside>
+            
+            <!-- Mobile Sidebar Backdrop -->
+            <div id="sidebarBackdrop" class="fixed inset-0 bg-black opacity-50 z-30 hidden md:hidden" onclick="toggleSidebar()"></div>
+
+
+            <!-- Main Content -->
+            <div class="flex-1 flex flex-col overflow-hidden">
+                <!-- Topbar -->
+                <header id="topbar" class="bg-white shadow-sm p-4 flex justify-between items-center">
+                    <div class="flex items-center">
+                        <button id="mobileMenuButton" class="md:hidden mr-3 text-gray-600 hover:text-indigo-600" onclick="toggleSidebar()">
+                            <i data-lucide="menu" class="h-6 w-6"></i>
+                        </button>
+                        <div id="topbarDeviceStatus" class="flex items-center">
+                            <span id="topbarTitle" class="text-xl font-semibold text-gray-700">Dashboard</span>
+                            <span id="deviceOnlineStatus" class="ml-3 px-2 py-0.5 text-xs font-medium rounded-full"></span>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <div class="text-sm text-gray-600">
+                            Device UID: <span id="currentDeviceUIDDisplay" class="font-semibold">N/A</span>
+                            <button id="changeDeviceButton" class="ml-1 text-indigo-600 hover:text-indigo-800 text-xs">(Change)</button>
+                        </div>
+                        <button id="logoutButton" class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-md shadow-sm text-sm flex items-center">
+                            <i data-lucide="log-out" class="h-4 w-4 mr-2"></i>Logout
+                        </button>
+                    </div>
+                </header>
+
+                <!-- Device ID Input Screen -->
+                <div id="deviceSelectionScreen" class="p-6 flex-1 overflow-y-auto bg-gray-50 flex flex-col items-center justify-center">
+                    <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-lg text-center">
+                        <i data-lucide="smartphone-cog" class="h-16 w-16 text-indigo-500 mx-auto mb-6"></i>
+                        <h2 class="text-2xl font-semibold text-gray-700 mb-4">Select Device to Monitor</h2>
+                        <p class="text-gray-600 mb-6">Enter the UID of the Android device you want to monitor.</p>
+                        <input type="text" id="deviceUIDInput" class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 mb-4" placeholder="Enter Device UID">
+                        <button id="setDeviceUIDButton" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                            Monitor Device
+                        </button>
+                        <p id="deviceSelectionError" class="mt-3 text-sm text-red-500"></p>
+                    </div>
+                </div>
+
+                <!-- Content Area for Sections -->
+                <main id="contentArea" class="p-4 md:p-6 flex-1 overflow-y-auto hidden">
+                    <!-- Device Info Section -->
+                    <div id="device-info-section" class="data-section hidden bg-white p-6 rounded-lg shadow">
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-2xl font-semibold text-gray-700">Device Information</h2>
+                            <div class="flex items-center">
+                                <span id="deviceStatusBadge" class="px-3 py-1 text-sm font-semibold rounded-full mr-4"></span>
+                                <span id="deviceLastSeen" class="text-sm text-gray-500"></span>
+                            </div>
+                        </div>
+                        <div id="device-info-loader" class="loader"></div>
+                        <div id="device-info-content" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <h3 class="text-lg font-medium text-gray-600 mb-1">Model</h3>
+                                <p id="infoModel" class="text-gray-800 text-lg">-</p>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-medium text-gray-600 mb-1">Operating System</h3>
+                                <p id="infoOS" class="text-gray-800 text-lg">-</p>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-medium text-gray-600 mb-1">IP Address</h3>
+                                <p id="infoIP" class="text-gray-800 text-lg">-</p>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-medium text-gray-600 mb-1">Device Alias</h3>
+                                <div class="flex items-center">
+                                    <input type="text" id="infoAliasInput" class="px-3 py-1.5 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-lg mr-2 flex-grow" placeholder="Set an alias">
+                                    <button id="saveAliasButton" class="bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-1.5 px-3 rounded-md text-sm">Save</button>
+                                </div>
+                                <p id="aliasSaveStatus" class="text-xs mt-1"></p>
+                            </div>
+                        </div>
+                        <div id="device-info-empty" class="text-center text-gray-500 py-8 hidden">No device information available.</div>
+                    </div>
+
+                    <!-- SMS Logs Section -->
+                    <div id="sms-section" class="data-section hidden bg-white p-6 rounded-lg shadow">
+                        <div class="flex flex-col md:flex-row justify-between items-center mb-4">
+                            <h2 class="text-2xl font-semibold text-gray-700 mb-2 md:mb-0">SMS Logs</h2>
+                            <div class="flex items-center space-x-2 w-full md:w-auto">
+                                <input type="text" id="searchSms" placeholder="Search..." class="p-2 border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 flex-grow md:flex-grow-0 md:w-64">
+                                <button id="exportSmsCsv" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-3 rounded-md text-sm flex items-center whitespace-nowrap">
+                                    <i data-lucide="download" class="h-4 w-4 mr-1.5"></i> Export CSV
+                                </button>
+                            </div>
+                        </div>
+                        <div id="sms-loader" class="loader"></div>
+                        <div id="sms-empty" class="text-center text-gray-500 py-8 hidden">No SMS logs found.</div>
+                        <div class="overflow-x-auto">
+                            <table id="smsTable" class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sender/Recipient</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Message</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="smsTableBody" class="bg-white divide-y divide-gray-200"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Call Logs Section -->
+                    <div id="calls-section" class="data-section hidden bg-white p-6 rounded-lg shadow">
+                        <div class="flex flex-col md:flex-row justify-between items-center mb-4">
+                            <h2 class="text-2xl font-semibold text-gray-700 mb-2 md:mb-0">Call Logs</h2>
+                             <div class="flex items-center space-x-2 w-full md:w-auto">
+                                <input type="text" id="searchCalls" placeholder="Search..." class="p-2 border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 flex-grow md:flex-grow-0 md:w-64">
+                                <button id="exportCallsCsv" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-3 rounded-md text-sm flex items-center whitespace-nowrap">
+                                    <i data-lucide="download" class="h-4 w-4 mr-1.5"></i> Export CSV
+                                </button>
+                            </div>
+                        </div>
+                        <div id="calls-loader" class="loader"></div>
+                        <div id="calls-empty" class="text-center text-gray-500 py-8 hidden">No call logs found.</div>
+                        <div class="overflow-x-auto">
+                            <table id="callsTable" class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Number</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="callsTableBody" class="bg-white divide-y divide-gray-200"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Installed Apps Section -->
+                    <div id="apps-section" class="data-section hidden bg-white p-6 rounded-lg shadow">
+                        <div class="flex flex-col md:flex-row justify-between items-center mb-4">
+                            <h2 class="text-2xl font-semibold text-gray-700 mb-2 md:mb-0">Installed Apps</h2>
+                             <div class="flex items-center space-x-2 w-full md:w-auto">
+                                <input type="text" id="searchApps" placeholder="Search..." class="p-2 border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 flex-grow md:flex-grow-0 md:w-64">
+                                <button id="exportAppsCsv" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-3 rounded-md text-sm flex items-center whitespace-nowrap">
+                                    <i data-lucide="download" class="h-4 w-4 mr-1.5"></i> Export CSV
+                                </button>
+                            </div>
+                        </div>
+                        <div id="apps-loader" class="loader"></div>
+                        <div id="apps-empty" class="text-center text-gray-500 py-8 hidden">No installed apps found.</div>
+                        <div class="overflow-x-auto">
+                            <table id="appsTable" class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">App Name</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Package Name</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="appsTableBody" class="bg-white divide-y divide-gray-200"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Battery Section -->
+                    <div id="battery-section" class="data-section hidden bg-white p-6 rounded-lg shadow">
+                        <h2 class="text-2xl font-semibold text-gray-700 mb-6">Battery Status</h2>
+                        <div id="battery-loader" class="loader"></div>
+                        <div id="battery-content" class="hidden">
+                            <div class="flex items-center mb-4">
+                                <span id="batteryIcon" class="mr-3"></span>
+                                <span id="batteryPercentage" class="text-3xl font-bold text-gray-800">-%</span>
+                                <span id="batteryStatus" class="ml-3 text-lg text-gray-600">-</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-4 dark:bg-gray-700">
+                                <div id="batteryProgressBar" class="bg-green-500 h-4 rounded-full" style="width: 0%"></div>
+                            </div>
+                            <p class="text-sm text-gray-500 mt-2">Last updated: <span id="batteryLastUpdated">-</span></p>
+                        </div>
+                        <div id="battery-empty" class="text-center text-gray-500 py-8 hidden">No battery information available.</div>
+                    </div>
+
+                    <!-- Location Section -->
+                    <div id="location-section" class="data-section hidden bg-white p-6 rounded-lg shadow">
+                        <h2 class="text-2xl font-semibold text-gray-700 mb-6">Device Location</h2>
+                        <div id="location-loader" class="loader"></div>
+                        <div id="location-content" class="hidden">
+                            <div class="mb-4">
+                                <p class="text-gray-600"><strong>Latitude:</strong> <span id="locLatitude">-</span></p>
+                                <p class="text-gray-600"><strong>Longitude:</strong> <span id="locLongitude">-</span></p>
+                                <p class="text-gray-600"><strong>Accuracy:</strong> <span id="locAccuracy">-</span> m</p>
+                                <p class="text-gray-600"><strong>Last Update:</strong> <span id="locTimestamp">-</span></p>
+                            </div>
+                            <div id="locationMap"></div>
+                        </div>
+                        <div id="location-empty" class="text-center text-gray-500 py-8 hidden">No location data available.</div>
+                    </div>
+
+                    <!-- File Logs Section -->
+                    <div id="files-section" class="data-section hidden bg-white p-6 rounded-lg shadow">
+                        <div class="flex flex-col md:flex-row justify-between items-center mb-4">
+                            <h2 class="text-2xl font-semibold text-gray-700 mb-2 md:mb-0">File Logs</h2>
+                             <div class="flex items-center space-x-2 w-full md:w-auto">
+                                <input type="text" id="searchFiles" placeholder="Search..." class="p-2 border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 flex-grow md:flex-grow-0 md:w-64">
+                                <button id="exportFilesCsv" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-3 rounded-md text-sm flex items-center whitespace-nowrap">
+                                    <i data-lucide="download" class="h-4 w-4 mr-1.5"></i> Export CSV
+                                </button>
+                            </div>
+                        </div>
+                        <div id="files-loader" class="loader"></div>
+                        <div id="files-empty" class="text-center text-gray-500 py-8 hidden">No file logs found.</div>
+                        <div class="overflow-x-auto">
+                            <table id="filesTable" class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">File Name</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Size</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Folder/Path</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="filesTableBody" class="bg-white divide-y divide-gray-200"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Screenshots Section -->
+                    <div id="screenshots-section" class="data-section hidden bg-white p-6 rounded-lg shadow">
+                         <div class="flex flex-col md:flex-row justify-between items-center mb-4">
+                            <h2 class="text-2xl font-semibold text-gray-700 mb-2 md:mb-0">Screenshots</h2>
+                            <input type="text" id="searchScreenshots" placeholder="Search by name..." class="p-2 border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 md:w-64">
+                        </div>
+                        <div id="screenshots-loader" class="loader"></div>
+                        <div id="screenshots-empty" class="text-center text-gray-500 py-8 hidden">No screenshots found.</div>
+                        <div id="screenshotsGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                            <!-- Screenshot thumbnails will be injected here -->
+                        </div>
+                    </div>
+
+                    <!-- Notifications Section -->
+                    <div id="notifications-section" class="data-section hidden bg-white p-6 rounded-lg shadow">
+                         <div class="flex flex-col md:flex-row justify-between items-center mb-4">
+                            <h2 class="text-2xl font-semibold text-gray-700 mb-2 md:mb-0">Notifications</h2>
+                            <div class="flex items-center space-x-2 w-full md:w-auto">
+                                <input type="text" id="searchNotifications" placeholder="Search..." class="p-2 border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 flex-grow md:flex-grow-0 md:w-64">
+                                <button id="exportNotificationsCsv" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-3 rounded-md text-sm flex items-center whitespace-nowrap">
+                                    <i data-lucide="download" class="h-4 w-4 mr-1.5"></i> Export CSV
+                                </button>
+                            </div>
+                        </div>
+                        <div id="notifications-loader" class="loader"></div>
+                        <div id="notifications-empty" class="text-center text-gray-500 py-8 hidden">No notifications found.</div>
+                        <div class="overflow-x-auto">
+                            <table id="notificationsTable" class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">App Name</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Body</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="notificationsTableBody" class="bg-white divide-y divide-gray-200"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </main>
+            </div>
+        </div>
+    </div>
+
+    <!-- Screenshot Modal -->
+    <div id="screenshotModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 hidden p-4" onclick="closeScreenshotModalOnClick(event)">
+        <div class="bg-white p-2 rounded-lg max-w-4xl w-full relative shadow-xl" onclick="event.stopPropagation()">
+            <button id="closeScreenshotModalButton" class="absolute top-2 right-2 text-gray-600 hover:text-red-500 bg-white rounded-full p-1 focus:outline-none">
+                <i data-lucide="x" class="h-6 w-6"></i>
+            </button>
+            <img id="fullScreenshotImage" src="" alt="Full Screenshot" class="max-w-full object-contain rounded">
+        </div>
+    </div>
+
+    <script type="module">
+        // Firebase SDK imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
+        import { getDatabase, ref, onValue, off, set, update, child } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
+
+        // --- Firebase Configuration ---
+        // IMPORTANT: REPLACE WITH YOUR ACTUAL FIREBASE CONFIGURATION
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            databaseURL: "YOUR_DATABASE_URL", // Realtime Database URL
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+
+        // --- Global State ---
+        let currentDeviceUID = localStorage.getItem('currentDeviceUID') || null;
+        let activeSection = 'device-info';
+        let currentDataListeners = {}; // Object to store listeners: { path: listenerRef }
+        let mapInstance = null;
+        let mapMarker = null;
+
+        // --- UI Elements ---
+        const loginScreenEl = document.getElementById('loginScreen');
+        const loginFormEl = document.getElementById('loginForm');
+        const emailInputEl = document.getElementById('email');
+        const passwordInputEl = document.getElementById('password');
+        const loginErrorEl = document.getElementById('loginError');
+
+        const adminPanelEl = document.getElementById('adminPanel');
+        const sidebarEl = document.getElementById('sidebar');
+        const sidebarBackdropEl = document.getElementById('sidebarBackdrop');
+        const topbarTitleEl = document.getElementById('topbarTitle');
+        const logoutButtonEl = document.getElementById('logoutButton');
+        const changeDeviceButtonEl = document.getElementById('changeDeviceButton');
+        const currentDeviceUIDDisplayEl = document.getElementById('currentDeviceUIDDisplay');
+        const deviceOnlineStatusEl = document.getElementById('deviceOnlineStatus');
+
+        const deviceSelectionScreenEl = document.getElementById('deviceSelectionScreen');
+        const deviceUIDInputEl = document.getElementById('deviceUIDInput');
+        const setDeviceUIDButtonEl = document.getElementById('setDeviceUIDButton');
+        const deviceSelectionErrorEl = document.getElementById('deviceSelectionError');
+        
+        const contentAreaEl = document.getElementById('contentArea');
+        const sections = document.querySelectorAll('.data-section');
+        const sidebarItems = document.querySelectorAll('.sidebar-item');
+
+        const screenshotModalEl = document.getElementById('screenshotModal');
+        const fullScreenshotImageEl = document.getElementById('fullScreenshotImage');
+        const closeScreenshotModalButtonEl = document.getElementById('closeScreenshotModalButton');
+
+        // --- Helper Functions ---
+        function formatTimestamp(timestamp, includeTime = true) {
+            if (!timestamp) return 'N/A';
+            const date = new Date(timestamp);
+            if (isNaN(date.getTime())) return 'Invalid Date';
+            const options = { year: 'numeric', month: 'short', day: 'numeric' };
+            if (includeTime) {
+                options.hour = '2-digit';
+                options.minute = '2-digit';
+            }
+            return date.toLocaleDateString(undefined, options);
+        }
+
+        function timeAgo(timestamp) {
+            if (!timestamp) return 'N/A';
+            const now = new Date();
+            const secondsPast = (now.getTime() - timestamp) / 1000;
+
+            if (secondsPast < 60) return `${Math.round(secondsPast)}s ago`;
+            if (secondsPast < 3600) return `${Math.round(secondsPast / 60)}m ago`;
+            if (secondsPast <= 86400) return `${Math.round(secondsPast / 3600)}h ago`;
+            const days = Math.round(secondsPast / 86400);
+            if (days < 7) return `${days}d ago`;
+            return formatTimestamp(timestamp, false);
+        }
+        
+        function humanFileSize(bytes, si = false, dp = 1) {
+            if (!bytes || isNaN(bytes)) return '0 B';
+            const thresh = si ? 1000 : 1024;
+            if (Math.abs(bytes) < thresh) return bytes + ' B';
+            const units = si
+                ? ['kB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
+                : ['KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB'];
+            let u = -1;
+            const r = 10 ** dp;
+            do {
+                bytes /= thresh;
+                ++u;
+            } while (Math.round(Math.abs(bytes) * r) / r >= thresh && u < units.length - 1);
+            return bytes.toFixed(dp) + ' ' + units[u];
+        }
+
+        function objectToArrayWithId(obj) {
+            if (!obj) return [];
+            return Object.entries(obj).map(([id, value]) => ({ ...value, id }));
+        }
+        
+        function sanitizeHTML(str) {
+            const temp = document.createElement('div');
+            temp.textContent = str;
+            return temp.innerHTML;
+        }
+
+        function createSkeletonRow(columns) {
+            const row = document.createElement('tr');
+            row.className = 'skeleton-table-row';
+            for (let i = 0; i < columns; i++) {
+                const cell = document.createElement('td');
+                cell.className = 'px-6 py-4 whitespace-nowrap';
+                const div = document.createElement('div');
+                div.className = 'skeleton-table-cell h-5 bg-gray-200 rounded';
+                cell.appendChild(div);
+                row.appendChild(cell);
+            }
+            return row;
+        }
+
+        function showLoader(sectionId) {
+            document.getElementById(`${sectionId}-loader`).classList.remove('hidden');
+            document.getElementById(`${sectionId}-empty`).classList.add('hidden');
+            if (document.getElementById(`${sectionId}-content`)) {
+                 document.getElementById(`${sectionId}-content`).classList.add('hidden');
+            }
+             if (document.getElementById(`${sectionId}TableBody`)) { // For tables
+                const tbody = document.getElementById(`${sectionId}TableBody`);
+                tbody.innerHTML = ''; // Clear previous content
+                for (let i = 0; i < 3; i++) { // Show 3 skeleton rows
+                    tbody.appendChild(createSkeletonRow(tbody.previousElementSibling.rows[0].cells.length));
+                }
+            } else if (document.getElementById(`${sectionId}Grid`)) { // For grids like screenshots
+                const grid = document.getElementById(`${sectionId}Grid`);
+                grid.innerHTML = '';
+                for (let i = 0; i < 4; i++) {
+                    const skeletonItem = document.createElement('div');
+                    skeletonItem.className = 'aspect-square bg-gray-200 rounded-md skeleton';
+                    grid.appendChild(skeletonItem);
+                }
+            }
+        }
+
+        function hideLoader(sectionId) {
+            document.getElementById(`${sectionId}-loader`).classList.add('hidden');
+        }
+
+        function showEmptyState(sectionId, show = true) {
+            document.getElementById(`${sectionId}-empty`).classList.toggle('hidden', !show);
+            if (document.getElementById(`${sectionId}-content`)) {
+                 document.getElementById(`${sectionId}-content`).classList.toggle('hidden', show);
+            }
+             if (document.getElementById(`${sectionId}TableBody`)) {
+                document.getElementById(`${sectionId}TableBody`).parentElement.classList.toggle('hidden', show);
+            } else if (document.getElementById(`${sectionId}Grid`)) {
+                document.getElementById(`${sectionId}Grid`).classList.toggle('hidden', show);
+            }
+        }
+        
+        function showContent(sectionId) {
+            if (document.getElementById(`${sectionId}-content`)) {
+                 document.getElementById(`${sectionId}-content`).classList.remove('hidden');
+            }
+            if (document.getElementById(`${sectionId}TableBody`)) { // For tables
+                document.getElementById(`${sectionId}TableBody`).parentElement.classList.remove('hidden');
+            } else if (document.getElementById(`${sectionId}Grid`)) { // For grids
+                document.getElementById(`${sectionId}Grid`).classList.remove('hidden');
+            }
+        }
+
+        // --- Authentication ---
+        loginFormEl.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = emailInputEl.value;
+            const password = passwordInputEl.value;
+            loginErrorEl.textContent = '';
+
+            signInWithEmailAndPassword(auth, email, password)
+                .then((userCredential) => {
+                    // Signed in
+                })
+                .catch((error) => {
+                    loginErrorEl.textContent = error.message;
+                });
+        });
+
+        logoutButtonEl.addEventListener('click', () => {
+            signOut(auth).catch(error => console.error("Logout error", error));
+        });
+        
+        changeDeviceButtonEl.addEventListener('click', () => {
+            clearAllListeners();
+            currentDeviceUID = null;
+            localStorage.removeItem('currentDeviceUID');
+            showDeviceSelectionScreen();
+        });
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                loginScreenEl.classList.add('hidden');
+                adminPanelEl.classList.remove('hidden');
+                if (currentDeviceUID) {
+                    showMainContent();
+                    loadDataForActiveSection();
+                } else {
+                    showDeviceSelectionScreen();
+                }
+            } else {
+                loginScreenEl.classList.remove('hidden');
+                adminPanelEl.classList.add('hidden');
+                showDeviceSelectionScreen(false); // Hide device selection if logged out
+                contentAreaEl.classList.add('hidden');
+                clearAllListeners();
+                currentDeviceUID = null;
+                localStorage.removeItem('currentDeviceUID');
+            }
+            lucide.createIcons(); // Refresh icons
+        });
+
+        // --- Device Selection ---
+        function showDeviceSelectionScreen(show = true) {
+            deviceSelectionScreenEl.classList.toggle('hidden', !show);
+            contentAreaEl.classList.toggle('hidden', show);
+            if (show) {
+                topbarTitleEl.textContent = "Select Device";
+                currentDeviceUIDDisplayEl.textContent = "N/A";
+                deviceOnlineStatusEl.textContent = '';
+                deviceOnlineStatusEl.className = 'ml-3 px-2 py-0.5 text-xs font-medium rounded-full'; // Reset class
+            }
+        }
+
+        function showMainContent() {
+            deviceSelectionScreenEl.classList.add('hidden');
+            contentAreaEl.classList.remove('hidden');
+            currentDeviceUIDDisplayEl.textContent = currentDeviceUID;
+            // Initial load of default section
+            navigateToSection(activeSection);
+        }
+
+        setDeviceUIDButtonEl.addEventListener('click', () => {
+            const uid = deviceUIDInputEl.value.trim();
+            if (uid) {
+                currentDeviceUID = uid;
+                localStorage.setItem('currentDeviceUID', uid);
+                deviceSelectionErrorEl.textContent = '';
+                showMainContent();
+            } else {
+                deviceSelectionErrorEl.textContent = 'Please enter a valid Device UID.';
+            }
+        });
+
+        // --- Listeners Management ---
+        function clearAllListeners() {
+            Object.values(currentDataListeners).forEach(listener => {
+                if (listener && listener.path) {
+                    off(ref(db, listener.path), listener.type, listener.callback);
+                } else if (listener && typeof listener === 'function') { // Simpler off for onValue
+                    listener(); // This is the unsubscribe function returned by onValue
+                }
+            });
+            currentDataListeners = {};
+        }
+
+        function addListener(path, eventType, callback) {
+            clearListener(path); // Remove existing listener for this path if any
+            const dbRef = ref(db, path);
+            onValue(dbRef, callback); // Using onValue for simplicity, can be adapted for child_added etc.
+            currentDataListeners[path] = () => off(dbRef, eventType, callback); // Store the off function
+        }
+        
+        function addValueListener(path, callback) {
+            clearListener(path);
+            const dbRef = ref(db, path);
+            const unsubscribe = onValue(dbRef, callback);
+            currentDataListeners[path] = unsubscribe;
+        }
+
+        function clearListener(path) {
+            if (currentDataListeners[path]) {
+                currentDataListeners[path](); // Call the unsubscribe function
+                delete currentDataListeners[path];
+            }
+        }
+
+        // --- Navigation & UI ---
+        function toggleSidebar() {
+            sidebarEl.classList.toggle('open');
+            sidebarEl.classList.toggle('md:translate-x-0'); // for md screens, remove this to allow toggle
+            sidebarBackdropEl.classList.toggle('hidden');
+        }
+        window.toggleSidebar = toggleSidebar; // Make it globally accessible for onclick
+
+        sidebarItems.forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                const sectionId = item.getAttribute('href').substring(1);
+                navigateToSection(sectionId);
+                if (window.innerWidth < 768) { // Close sidebar on mobile after navigation
+                    toggleSidebar();
+                }
+            });
+        });
+
+        function navigateToSection(sectionId) {
+            activeSection = sectionId;
+            // Update topbar title
+            const activeSidebarItem = document.querySelector(`.sidebar-item[href="#${sectionId}"]`);
+            topbarTitleEl.textContent = activeSidebarItem ? activeSidebarItem.textContent.trim() : "Dashboard";
+
+            // Hide all sections
+            sections.forEach(sec => sec.classList.add('hidden'));
+            // Show active section
+            const activeSectionEl = document.getElementById(`${sectionId}-section`);
+            if (activeSectionEl) {
+                activeSectionEl.classList.remove('hidden');
+            }
+
+            // Update sidebar active state
+            sidebarItems.forEach(item => item.classList.remove('active'));
+            if(activeSidebarItem) activeSidebarItem.classList.add('active');
+
+            // Load data for the new active section
+            loadDataForActiveSection();
+            lucide.createIcons(); // Ensure new icons are rendered
+        }
+
+        function loadDataForActiveSection() {
+            if (!currentDeviceUID) {
+                showDeviceSelectionScreen();
+                return;
+            }
+            clearAllListeners(); // Clear previous section's listeners
+
+            switch (activeSection) {
+                case 'device-info': loadDeviceInfo(); break;
+                case 'sms': loadSmsLogs(); break;
+                case 'calls': loadCallLogs(); break;
+                case 'apps': loadInstalledApps(); break;
+                case 'battery': loadBatteryStatus(); break;
+                case 'location': loadLocationData(); break;
+                case 'files': loadFileLogs(); break;
+                case 'screenshots': loadScreenshots(); break;
+                case 'notifications': loadNotifications(); break;
+            }
+        }
+        
+        // --- Data Loading Functions ---
+
+        // Device Info
+        function loadDeviceInfo() {
+            const sectionId = 'device-info';
+            showLoader(sectionId);
+            const path = `devices/${currentDeviceUID}/info`;
+            
+            addValueListener(path, (snapshot) => {
+                hideLoader(sectionId);
+                const data = snapshot.val();
+                if (data) {
+                    showContent(sectionId);
+                    showEmptyState(sectionId, false);
+                    document.getElementById('infoModel').textContent = data.model || '-';
+                    document.getElementById('infoOS').textContent = data.os || '-';
+                    document.getElementById('infoIP').textContent = data.ip || '-';
+                    document.getElementById('infoAliasInput').value = data.alias || '';
+
+                    if (data.last_seen) {
+                        const lastSeenDate = new Date(data.last_seen);
+                        document.getElementById('deviceLastSeen').textContent = `Last seen: ${timeAgo(data.last_seen)}`;
+                        const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+                        const isOnline = lastSeenDate.getTime() > fiveMinutesAgo;
+                        
+                        const statusBadge = document.getElementById('deviceStatusBadge');
+                        statusBadge.textContent = isOnline ? 'Online' : 'Offline';
+                        statusBadge.className = `px-3 py-1 text-sm font-semibold rounded-full mr-4 ${isOnline ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`;
+                        
+                        deviceOnlineStatusEl.textContent = isOnline ? 'Online' : 'Offline';
+                        deviceOnlineStatusEl.className = `ml-3 px-2 py-0.5 text-xs font-medium rounded-full ${isOnline ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`;
+
+                    } else {
+                        document.getElementById('deviceLastSeen').textContent = 'Last seen: N/A';
+                        document.getElementById('deviceStatusBadge').textContent = 'Unknown';
+                        document.getElementById('deviceStatusBadge').className = 'px-3 py-1 text-sm font-semibold rounded-full mr-4 bg-gray-100 text-gray-700';
+                        deviceOnlineStatusEl.textContent = 'Unknown';
+                        deviceOnlineStatusEl.className = 'ml-3 px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-700';
+                    }
+                } else {
+                    showEmptyState(sectionId, true);
+                     deviceOnlineStatusEl.textContent = 'Unknown';
+                     deviceOnlineStatusEl.className = 'ml-3 px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-700';
+                }
+                lucide.createIcons();
+            });
+        }
+        document.getElementById('saveAliasButton').addEventListener('click', () => {
+            const newAlias = document.getElementById('infoAliasInput').value.trim();
+            const statusEl = document.getElementById('aliasSaveStatus');
+            if (currentDeviceUID) {
+                update(ref(db, `devices/${currentDeviceUID}/info`), { alias: newAlias })
+                    .then(() => {
+                        statusEl.textContent = 'Alias saved!';
+                        statusEl.className = 'text-xs mt-1 text-green-600';
+                        setTimeout(() => statusEl.textContent = '', 2000);
+                    })
+                    .catch(err => {
+                        statusEl.textContent = 'Error saving alias.';
+                        statusEl.className = 'text-xs mt-1 text-red-600';
+                        console.error("Error saving alias: ", err);
+                    });
+            }
+        });
+
+        // SMS Logs
+        function loadSmsLogs() {
+            const sectionId = 'sms';
+            showLoader(sectionId);
+            const path = `devices/${currentDeviceUID}/sms`;
+            addValueListener(path, (snapshot) => {
+                hideLoader(sectionId);
+                const data = snapshot.val();
+                const smsArray = objectToArrayWithId(data).sort((a,b) => (b.time || 0) - (a.time || 0)); // Sort by time desc
+                const tbody = document.getElementById('smsTableBody');
+                tbody.innerHTML = '';
+                if (smsArray.length > 0) {
+                    showContent(sectionId);
+                    showEmptyState(sectionId, false);
+                    smsArray.forEach(sms => {
+                        const row = tbody.insertRow();
+                        row.innerHTML = `
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${sanitizeHTML(sms.sender || sms.address || 'N/A')}</td>
+                            <td class="px-6 py-4 whitespace-normal text-sm text-gray-500 break-all">${sanitizeHTML(sms.message || sms.body || 'N/A')}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatTimestamp(sms.time || sms.date)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${sanitizeHTML(sms.type === 1 ? 'Inbox' : sms.type === 2 ? 'Sent' : (sms.type || 'N/A'))}</td>
+                        `;
+                    });
+                } else {
+                    showEmptyState(sectionId, true);
+                }
+                addSearchFunctionality('searchSms', 'smsTableBody');
+            });
+        }
+
+        // Call Logs
+        function loadCallLogs() {
+            const sectionId = 'calls';
+            showLoader(sectionId);
+            const path = `devices/${currentDeviceUID}/calls`;
+            addValueListener(path, (snapshot) => {
+                hideLoader(sectionId);
+                const data = snapshot.val();
+                const callsArray = objectToArrayWithId(data).sort((a,b) => (b.time || b.date || 0) - (a.time || a.date || 0));
+                const tbody = document.getElementById('callsTableBody');
+                tbody.innerHTML = '';
+                if (callsArray.length > 0) {
+                    showContent(sectionId);
+                    showEmptyState(sectionId, false);
+                    callsArray.forEach(call => {
+                        const row = tbody.insertRow();
+                        const durationMinutes = Math.floor((call.duration || 0) / 60);
+                        const durationSeconds = (call.duration || 0) % 60;
+                        const formattedDuration = `${durationMinutes}m ${durationSeconds}s`;
+                        row.innerHTML = `
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${sanitizeHTML(call.number || 'N/A')}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formattedDuration}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${sanitizeHTML(call.type || 'N/A')}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatTimestamp(call.time || call.date)}</td>
+                        `;
+                    });
+                } else {
+                    showEmptyState(sectionId, true);
+                }
+                addSearchFunctionality('searchCalls', 'callsTableBody');
+            });
+        }
+
+        // Installed Apps
+        function loadInstalledApps() {
+            const sectionId = 'apps';
+            showLoader(sectionId);
+            const path = `devices/${currentDeviceUID}/apps`;
+            addValueListener(path, (snapshot) => {
+                hideLoader(sectionId);
+                const data = snapshot.val();
+                // Assuming data is an object { package_name: { name: "App Name" }, ... }
+                // or an array [ {name:"App Name", package:"pkg_name"}, ...]
+                // For consistency with Firebase push IDs, let's assume it's like { pushId: { name: "App Name", package: "pkg_name" } }
+                const appsArray = objectToArrayWithId(data).sort((a,b) => (a.name || "").localeCompare(b.name || ""));
+                const tbody = document.getElementById('appsTableBody');
+                tbody.innerHTML = '';
+                if (appsArray.length > 0) {
+                    showContent(sectionId);
+                    showEmptyState(sectionId, false);
+                    appsArray.forEach(app => {
+                        const row = tbody.insertRow();
+                        row.innerHTML = `
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${sanitizeHTML(app.name || 'N/A')}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${sanitizeHTML(app.package || app.packageName || 'N/A')}</td>
+                        `;
+                    });
+                } else {
+                    showEmptyState(sectionId, true);
+                }
+                 addSearchFunctionality('searchApps', 'appsTableBody');
+            });
+        }
+
+        // Battery Status
+        function loadBatteryStatus() {
+            const sectionId = 'battery';
+            showLoader(sectionId);
+            const path = `devices/${currentDeviceUID}/battery`;
+            addValueListener(path, (snapshot) => {
+                hideLoader(sectionId);
+                const data = snapshot.val();
+                if (data) {
+                    showContent(sectionId);
+                    showEmptyState(sectionId, false);
+                    document.getElementById('batteryPercentage').textContent = `${data.percentage || 0}%`;
+                    const statusText = data.charging ? 'Charging' : 'Discharging';
+                    document.getElementById('batteryStatus').textContent = statusText;
+                    document.getElementById('batteryProgressBar').style.width = `${data.percentage || 0}%`;
+                    document.getElementById('batteryProgressBar').className = `h-4 rounded-full ${data.percentage < 20 ? 'bg-red-500' : data.percentage < 50 ? 'bg-yellow-500' : 'bg-green-500'}`;
+                    document.getElementById('batteryLastUpdated').textContent = formatTimestamp(data.timestamp);
+
+                    const iconEl = document.getElementById('batteryIcon');
+                    let iconName = 'battery-full';
+                    if (data.charging) iconName = 'battery-charging';
+                    else if (data.percentage < 20) iconName = 'battery-low';
+                    else if (data.percentage < 50) iconName = 'battery-medium';
+                    iconEl.innerHTML = `<i data-lucide="${iconName}" class="h-8 w-8 ${data.charging ? 'text-blue-500' : data.percentage < 20 ? 'text-red-500' : data.percentage < 50 ? 'text-yellow-500' : 'text-green-500'}"></i>`;
+                } else {
+                    showEmptyState(sectionId, true);
+                }
+                lucide.createIcons();
+            });
+        }
+
+        // Location Data
+        function loadLocationData() {
+            const sectionId = 'location';
+            showLoader(sectionId);
+            const path = `devices/${currentDeviceUID}/gps`; // Assuming 'gps' holds the latest location object
+                                                           // If it's a list, you'd fetch the latest.
+            addValueListener(path, (snapshot) => {
+                hideLoader(sectionId);
+                const data = snapshot.val();
+                if (data && data.latitude && data.longitude) {
+                    showContent(sectionId);
+                    showEmptyState(sectionId, false);
+                    document.getElementById('locLatitude').textContent = data.latitude.toFixed(6);
+                    document.getElementById('locLongitude').textContent = data.longitude.toFixed(6);
+                    document.getElementById('locAccuracy').textContent = data.accuracy ? data.accuracy.toFixed(1) : 'N/A';
+                    document.getElementById('locTimestamp').textContent = formatTimestamp(data.time || data.timestamp);
+
+                    const latLng = [data.latitude, data.longitude];
+                    if (!mapInstance) {
+                        mapInstance = L.map('locationMap').setView(latLng, 15);
+                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                        }).addTo(mapInstance);
+                        mapMarker = L.marker(latLng).addTo(mapInstance);
+                    } else {
+                        mapInstance.setView(latLng, mapInstance.getZoom());
+                        mapMarker.setLatLng(latLng);
+                    }
+                    mapMarker.bindPopup(`Location at ${formatTimestamp(data.time || data.timestamp)}`).openPopup();
+                } else {
+                    showEmptyState(sectionId, true);
+                    if (mapInstance) { // Clear map if no data
+                        mapInstance.remove();
+                        mapInstance = null;
+                        mapMarker = null;
+                         document.getElementById('locationMap').innerHTML = ''; // Clear map div
+                    }
+                }
+            });
+        }
+        
+        // File Logs
+        function loadFileLogs() {
+            const sectionId = 'files';
+            showLoader(sectionId);
+            const path = `devices/${currentDeviceUID}/files`;
+            addValueListener(path, (snapshot) => {
+                hideLoader(sectionId);
+                const data = snapshot.val();
+                const filesArray = objectToArrayWithId(data).sort((a,b) => (b.time || b.timestamp || 0) - (a.time || a.timestamp || 0));
+                const tbody = document.getElementById('filesTableBody');
+                tbody.innerHTML = '';
+                if (filesArray.length > 0) {
+                    showContent(sectionId);
+                    showEmptyState(sectionId, false);
+                    filesArray.forEach(file => {
+                        const row = tbody.insertRow();
+                        row.innerHTML = `
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${sanitizeHTML(file.name || 'N/A')}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${humanFileSize(file.size)}</td>
+                            <td class="px-6 py-4 whitespace-normal text-sm text-gray-500 break-all">${sanitizeHTML(file.path || file.folder || 'N/A')}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatTimestamp(file.time || file.timestamp)}</td>
+                        `;
+                    });
+                } else {
+                    showEmptyState(sectionId, true);
+                }
+                 addSearchFunctionality('searchFiles', 'filesTableBody');
+            });
+        }
+
+        // Screenshots
+        function loadScreenshots() {
+            const sectionId = 'screenshots';
+            showLoader(sectionId);
+            const path = `devices/${currentDeviceUID}/screenshots`;
+            addValueListener(path, (snapshot) => {
+                hideLoader(sectionId);
+                const data = snapshot.val();
+                const screenshotsArray = objectToArrayWithId(data).sort((a,b) => (b.time || b.timestamp || 0) - (a.time || a.timestamp || 0));
+                const grid = document.getElementById('screenshotsGrid');
+                grid.innerHTML = '';
+                if (screenshotsArray.length > 0) {
+                    showContent(sectionId);
+                    showEmptyState(sectionId, false);
+                    screenshotsArray.forEach(ss => {
+                        const div = document.createElement('div');
+                        div.className = 'bg-gray-50 p-2 rounded-lg shadow hover:shadow-md transition-shadow cursor-pointer aspect-w-1 aspect-h-1';
+                        div.innerHTML = `
+                            <img src="${sanitizeHTML(ss.url)}" alt="${sanitizeHTML(ss.name || 'Screenshot')}" class="w-full h-full object-cover rounded-md mb-1">
+                            <p class="text-xs text-gray-600 truncate" title="${sanitizeHTML(ss.name || 'Screenshot')}">${sanitizeHTML(ss.name || 'Screenshot')}</p>
+                            <p class="text-xs text-gray-400">${formatTimestamp(ss.time || ss.timestamp, false)}</p>
+                        `;
+                        div.addEventListener('click', () => openScreenshotModal(ss.url));
+                        grid.appendChild(div);
+                    });
+                } else {
+                    showEmptyState(sectionId, true);
+                }
+                addSearchFunctionalityGrid('searchScreenshots', 'screenshotsGrid', (item, term) => {
+                    const name = item.querySelector('p:nth-of-type(1)').textContent.toLowerCase();
+                    return name.includes(term);
+                });
+            });
+        }
+        
+        function openScreenshotModal(url) {
+            fullScreenshotImageEl.src = url;
+            screenshotModalEl.classList.remove('hidden');
+        }
+        window.closeScreenshotModalOnClick = function(event) { // Make it global for onclick
+            if (event.target === screenshotModalEl) { // Only close if backdrop is clicked
+                 screenshotModalEl.classList.add('hidden');
+                 fullScreenshotImageEl.src = ''; // Clear image
+            }
+        }
+        closeScreenshotModalButtonEl.addEventListener('click', () => {
+             screenshotModalEl.classList.add('hidden');
+             fullScreenshotImageEl.src = ''; // Clear image
+        });
+
+
+        // Notifications
+        function loadNotifications() {
+            const sectionId = 'notifications';
+            showLoader(sectionId);
+            const path = `devices/${currentDeviceUID}/notifications`;
+            addValueListener(path, (snapshot) => {
+                hideLoader(sectionId);
+                const data = snapshot.val();
+                const notificationsArray = objectToArrayWithId(data).sort((a,b) => (b.time || b.timestamp || 0) - (a.time || a.timestamp || 0));
+                const tbody = document.getElementById('notificationsTableBody');
+                tbody.innerHTML = '';
+                if (notificationsArray.length > 0) {
+                    showContent(sectionId);
+                    showEmptyState(sectionId, false);
+                    notificationsArray.forEach(noti => {
+                        const row = tbody.insertRow();
+                        row.innerHTML = `
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${sanitizeHTML(noti.app || noti.appName || 'N/A')}</td>
+                            <td class="px-6 py-4 whitespace-normal text-sm text-gray-700 break-words">${sanitizeHTML(noti.title || 'N/A')}</td>
+                            <td class="px-6 py-4 whitespace-normal text-sm text-gray-500 break-words">${sanitizeHTML(noti.body || noti.text || 'N/A')}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatTimestamp(noti.time || noti.timestamp)}</td>
+                        `;
+                    });
+                } else {
+                    showEmptyState(sectionId, true);
+                }
+                 addSearchFunctionality('searchNotifications', 'notificationsTableBody');
+            });
+        }
+        
+        // --- Search Functionality ---
+        function addSearchFunctionality(inputId, tableBodyId) {
+            const searchInput = document.getElementById(inputId);
+            if (!searchInput) return;
+            searchInput.addEventListener('keyup', () => {
+                const term = searchInput.value.toLowerCase();
+                const tableBody = document.getElementById(tableBodyId);
+                if (!tableBody) return;
+                Array.from(tableBody.rows).forEach(row => {
+                    const textContent = row.textContent.toLowerCase();
+                    row.style.display = textContent.includes(term) ? '' : 'none';
+                });
+            });
+        }
+
+        function addSearchFunctionalityGrid(inputId, gridId, filterFn) {
+            const searchInput = document.getElementById(inputId);
+            if (!searchInput) return;
+            searchInput.addEventListener('keyup', () => {
+                const term = searchInput.value.toLowerCase();
+                const grid = document.getElementById(gridId);
+                if (!grid) return;
+                Array.from(grid.children).forEach(item => {
+                    item.style.display = filterFn(item, term) ? '' : 'none';
+                });
+            });
+        }
+
+
+        // --- Export CSV Functionality ---
+        function exportTableToCSV(tableId, filename) {
+            const table = document.getElementById(tableId);
+            if (!table) return;
+            let csv = [];
+            const rows = table.querySelectorAll("tr");
+            
+            // Get headers
+            const headers = [];
+            table.querySelectorAll("thead th").forEach(header => headers.push(header.innerText));
+            csv.push(headers.join(","));
+
+            // Get visible rows (respecting search filter)
+            for (const row of rows) {
+                if (row.style.display === 'none' || !row.parentElement.id.endsWith('TableBody')) continue; // Skip hidden rows and header rows if any in `rows`
+                
+                constrowData = [];
+                row.querySelectorAll("td").forEach(cell => {
+                    // Clean data: remove commas, wrap in quotes if necessary
+                    let cellData = cell.innerText.replace(/"/g, '""'); // Escape double quotes
+                    if (cellData.includes(",")) cellData = `"${cellData}"`; // Quote if comma present
+                    rowData.push(cellData);
+                });
+                if(rowData.length > 0) csv.push(rowData.join(","));
+            }
+
+            downloadCSV(csv.join("\n"), filename);
+        }
+
+        function downloadCSV(csvStr, filename) {
+            const blob = new Blob([csvStr], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            if (link.download !== undefined) { // feature detection
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", filename);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        }
+        // Attach CSV export to buttons
+        document.getElementById('exportSmsCsv').addEventListener('click', () => exportTableToCSV('smsTable', 'sms_logs.csv'));
+        document.getElementById('exportCallsCsv').addEventListener('click', () => exportTableToCSV('callsTable', 'call_logs.csv'));
+        document.getElementById('exportAppsCsv').addEventListener('click', () => exportTableToCSV('appsTable', 'installed_apps.csv'));
+        document.getElementById('exportFilesCsv').addEventListener('click', () => exportTableToCSV('filesTable', 'file_logs.csv'));
+        document.getElementById('exportNotificationsCsv').addEventListener('click', () => exportTableToCSV('notificationsTable', 'notifications.csv'));
+
+
+        // --- Initial Load ---
+        if (firebaseConfig.apiKey === "YOUR_API_KEY") {
+            console.warn("Firebase configuration is not set. Please update firebaseConfig in the script.");
+            alert("Firebase configuration is missing. The app will not work correctly. Please check the console (F12) and update the script.");
+             // Show a prominent warning or disable functionality
+            const warningDiv = document.createElement('div');
+            warningDiv.className = 'fixed top-0 left-0 right-0 bg-red-500 text-white p-4 text-center z-[1000]';
+            warningDiv.innerHTML = '<b>CRITICAL:</b> Firebase configuration is missing. Please edit the HTML file and add your Firebase project details. The application will not function correctly.';
+            document.body.prepend(warningDiv);
+        }
+        
+        // Initial setup on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            if (currentDeviceUID) {
+                 deviceUIDInputEl.value = currentDeviceUID; // Pre-fill if remembered
+            }
+            // Default active section already set, onAuthStateChanged will trigger first load if logged in & UID set
+            lucide.createIcons();
+        });
+
+    </script>
+</body>
+</html>
